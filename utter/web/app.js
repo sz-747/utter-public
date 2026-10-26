@@ -630,7 +630,7 @@ function settingsBody(s) {
       </div>
       <div class="group-title">AI polish</div>
       <div class="group">
-        ${row('AI polish', `Removes filler words and fixes punctuation in long dictations using ${esc(llm.model || 'the model')} (${esc(llm.provider || '')}${llm.local ? ', on this PC' : ''}). Double-tap Right Shift to switch it while dictating.`, toggle('llm_enabled', v.llm_enabled))}
+        ${row('AI polish', `Removes filler words and fixes punctuation in long dictations using ${esc(llm.model || 'the model')} (${esc(llm.label || llm.provider || '')}${llm.local ? ', on this PC' : ''}). Double-tap Right Shift to switch it while dictating.`, toggle('llm_enabled', v.llm_enabled))}
         ${row('Only polish dictations longer than', 'Shorter ones are typed straight away, with no delay.', `<span><input type="number" min="0" step="10" data-number-setting="llm_min_chars" value="${v.llm_min_chars}"> <span class="muted">chars</span></span>`)}
       </div>
       ${v.llm_enabled && llm.reachable === false ? `<p class="note warn">${esc(llm.label || llm.provider)} is not answering on this PC, so long dictations cannot be polished. Start ${esc(llm.label || llm.provider)} with ${esc(llm.model)} or turn AI polish off.</p>` : ''}

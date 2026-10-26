@@ -1,0 +1,29 @@
+# Dictionary words
+# One word or name per line; lines starting with # are ignored.
+# Words are matched by sound, so a misheard "git hub" becomes "GitHub".
+# A match above the threshold (hot_thresh in config_client.py) is always replaced.
+# Utter copies this file to hot.txt the first time it runs; edit hot.txt (or use Utter's Dictionary page).
+
+# AI tools and companies
+Claude
+Claude Code
+Codex
+ChatGPT
+OpenAI
+Anthropic
+DeepSeek
+Qwen
+Ollama
+LM Studio
+
+# Developer tools
+GitHub
+TypeScript
+PyTorch
+Kubernetes
+Docker
+PostgreSQL
+SQLite
+FastAPI
+Markdown
+Tailscale

@@ -1,0 +1,17 @@
+# Replacement rules
+# One rule per line: a regular expression, " = ", then the replacement. Lines starting with # are ignored.
+# Spaces around both sides are trimmed. A rule with nothing after " =" deletes what it matches.
+# Utter copies this file to hot-rule.txt the first time it runs; edit hot-rule.txt.
+
+# Units
+milliamp hours = mAh
+(?i)\bkilo ?hertz\b = kHz
+
+# Spoken email addresses: "sam at example dot com" -> "sam@example.com"
+(\w+)\s+at\s+(\w+)\s+dot\s+(com|org|net|io)\b = \1@\2.\3
+
+# Words the speech model often hears differently
+(?i)\bcloud code\b = Claude Code
+
+# Filler words: um, uh, erm, hmm (keeps "uh-huh")
+(?i)(?<![\w'’-])(?:u+m+|u+h+(?![\s,-]*huh)|e+r+m+|h+m+)(?![\w'’-])[,.]?\s* =

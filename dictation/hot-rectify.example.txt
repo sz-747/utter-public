@@ -1,0 +1,9 @@
+# Correction history for AI polish
+# Blocks separated by ---. In each block the first line is what was recognised,
+# the second line is what you meant. Lines starting with # and blank lines are ignored.
+# When a new dictation resembles one of these, AI polish sees the correction as an example.
+# Utter copies this file to hot-rectify.txt the first time it runs; edit hot-rectify.txt.
+---
+Do you know cloud code? It is used for writing code
+Do you know Claude Code? It is used for writing code
+---

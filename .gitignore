@@ -1,0 +1,46 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# WebView2 profile data
+.webview/
+# Utter's own state: connector settings and logs (secrets live in Credential Manager)
+/state/
+
+# Dictation client: your data and machine-generated files
+dictation/appdata/
+dictation/logs/
+dictation/transcripts/
+dictation/[0-9][0-9][0-9][0-9]/
+# Your dictionary; the committed *.example.txt files are the starting point
+dictation/hot.txt
+dictation/hot-rule.txt
+dictation/hot-rectify.txt
+dictation/hot-learned.txt
+dictation/hot-rule-learned.txt
+
+# Speech server and model, downloaded from the CapsWriter-Offline releases (INSTALL.md step 3)
+dictation/internal/
+dictation/models/
+*.exe
+*.dll
+*.onnx
+*.gguf
+*.safetensors
+
+# Local overrides and secrets
+.env
+.env.*
+*.local.*
+*.sqlite3
+# Coding agents' per-machine settings
+.claude/settings.local.json
+
+# OS / editors
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

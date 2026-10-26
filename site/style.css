@@ -219,15 +219,16 @@ kbd {
 .btn-copy:hover { background: #fff; }
 .btn-copy.copied { background: var(--teal); color: var(--ink); border-color: transparent; }
 
-/* ---------- changelog ---------- */
-.changelog { max-width: 1080px; margin: clamp(100px, 13vw, 170px) auto 0; padding: 0 var(--gutter); }
+/* ---------- changelog (its own page, changelog.html) ---------- */
+.changelog { max-width: 1080px; margin: clamp(40px, 8vw, 96px) auto 0; padding: 0 var(--gutter); }
+.nav-links a[aria-current="page"] { color: var(--cream); }
 .release {
   display: grid; grid-template-columns: minmax(80px, 200px) minmax(0, 1fr); gap: clamp(16px, 4vw, 56px);
   padding: clamp(26px, 4vw, 40px) 0; border-top: 1px solid var(--line);
 }
-.release-head h3 { margin: 0; font: italic 400 clamp(40px, 5vw, 60px)/.9 var(--serif); }
-.release-head h3 a { color: var(--cream); text-decoration: none; }
-.release-head h3 a:hover { color: var(--teal); }
+.release-head h2 { margin: 0; font: italic 400 clamp(40px, 5vw, 60px)/.9 var(--serif); }
+.release-head h2 a { color: var(--cream); text-decoration: none; }
+.release-head h2 a:hover { color: var(--teal); }
 .release-head time { display: block; margin-top: 10px; font: 500 12.5px var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--cream-faint); }
 .release-body ul { margin: 0; padding-left: 1.1em; color: var(--cream-dim); }
 .release-body li { margin: 0 0 8px; }
@@ -240,9 +241,14 @@ kbd {
 .changelog-more { margin: 8px 0 0; padding-top: 24px; border-top: 1px solid var(--line); font-size: 15px; }
 .changelog-more a { color: var(--cream-dim); }
 
+/* the last thing before the footer on every page */
+.to-top { max-width: 1080px; margin: clamp(56px, 8vw, 88px) auto 0; padding: 0 var(--gutter); text-align: center; font-size: 14px; }
+.to-top a { color: var(--cream-faint); text-decoration: none; }
+.to-top a:hover { color: var(--cream); }
+
 /* ---------- footer ---------- */
 .footer {
-  max-width: 1080px; margin: clamp(100px, 12vw, 160px) auto 0; padding: 30px var(--gutter) 48px;
+  max-width: 1080px; margin: 28px auto 0; padding: 30px var(--gutter) 48px;
   border-top: 1px solid var(--line); display: flex; flex-wrap: wrap; align-items: center; gap: 12px 28px;
   font-size: 14px; color: var(--cream-faint);
 }

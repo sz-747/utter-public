@@ -51,7 +51,7 @@ class AppServer:
         self._timer.daemon = True
         self._timer.start()
         try:
-            self.request('initialize', {'clientInfo': {'name': 'utter', 'title': 'Utter', 'version': '0.1.0'}})
+            self.request('initialize', {'clientInfo': {'name': 'utter', 'title': 'Utter', 'version': '0.1.1'}})
             self.send({'method': 'initialized'})
         except Exception:
             self.close()

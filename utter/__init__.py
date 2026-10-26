@@ -1,5 +1,5 @@
 """Utter: a desktop window over the dictation client in ../dictation."""
-__version__ = '0.1.0'
+__version__ = '0.1.1'
 
 from . import dictation  # noqa: E402
 

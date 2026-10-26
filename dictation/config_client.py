@@ -1,7 +1,7 @@
 import os
 
 # Version of Utter's dictation client (forked from CapsWriter-Offline 2.5)
-__version__ = '0.1.0'
+__version__ = '0.1.1'
 
 # Project root
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))

@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Utter — speak, and it types. Private dictation for Windows.</title>
+  <meta name="description" content="Utter is private, on-device dictation for Windows. Press a key, speak, and clean text lands wherever you are typing. Your voice never leaves your PC.">
+  <meta property="og:title" content="Introducing Utter">
+  <meta property="og:description" content="Private, on-device dictation for Windows. Press a key, speak, and clean text lands wherever you are typing.">
+  <meta property="og:image" content="https://sz-747.github.io/utter-public/assets/home.png">
+  <meta name="theme-color" content="#0b0e0d">
+  <link rel="icon" href="assets/utter.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500&family=Schibsted+Grotesk:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="grain" aria-hidden="true"></div>
+
+  <header class="nav">
+    <a class="brand" href="#top" aria-label="Utter home">
+      <img src="assets/utter.png" alt="" width="30" height="30">
+      <span>Utter</span>
+    </a>
+    <nav class="nav-links">
+      <a href="#how">How it works</a>
+      <a href="#install">Install</a>
+      <a href="https://github.com/sz-747/utter-public">GitHub</a>
+      <a class="nav-cta" href="#install">Download</a>
+    </nav>
+  </header>
+
+  <main id="top">
+    <!-- Hero -->
+    <section class="hero">
+      <p class="eyebrow reveal" style="--d: 0">
+        <span class="eyebrow-dot"></span> Introducing
+      </p>
+      <h1 class="hero-title reveal" style="--d: 1">Utter</h1>
+      <p class="hero-lede reveal" style="--d: 2">
+        Press a key, <em>speak</em>, and clean text lands wherever you're typing.
+        Private dictation that runs entirely on your Windows PC.
+      </p>
+      <div class="hero-actions reveal" style="--d: 3">
+        <a class="btn btn-primary" href="#install">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11m0 0-4.5-4.5M12 15l4.5-4.5M5 19h14"/></svg>
+          Download for Windows
+        </a>
+        <button class="btn btn-ghost" type="button" data-copy="prompt">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2.5"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></svg>
+          <span data-copy-label>Copy setup prompt for your AI agent</span>
+        </button>
+      </div>
+
+      <!-- Live demo -->
+      <div class="stage reveal" style="--d: 4" id="stage">
+        <div class="stage-chrome">
+          <span></span><span></span><span></span>
+          <p class="stage-title">Message to the team</p>
+          <p class="stage-state" id="stage-state"><i></i><b>Ready</b></p>
+        </div>
+        <div class="stage-body">
+          <div class="stage-wave"><canvas id="wave" aria-hidden="true"></canvas></div>
+          <div class="stage-doc">
+            <p class="doc-text" id="doc-text" aria-live="polite"></p>
+            <ul class="doc-fixes" id="doc-fixes" aria-label="What Utter fixed"></ul>
+          </div>
+        </div>
+        <p class="stage-hint">
+          <span class="hint-desktop">Hold <kbd>Space</kbd> to talk</span>
+          <span class="hint-touch">Press and hold the wave to talk</span>
+          <span class="hint-sep">·</span> it plays on its own too
+        </p>
+      </div>
+    </section>
+
+    <!-- Promise strip -->
+    <section class="promise" aria-label="Highlights">
+      <div><strong>On-device</strong><span>Speech recognition runs on your own PC. Your audio is never uploaded.</span></div>
+      <div><strong>Anywhere</strong><span>Any app that takes text: chat, email, docs, your code editor, your AI prompts.</span></div>
+      <div><strong>Gets your words</strong><span>Fix a misheard name once and Utter learns it.</span></div>
+    </section>
+
+    <!-- How it works -->
+    <section class="how" id="how">
+      <h2 class="section-title">Less typing.<br><em>Nothing to babysit.</em></h2>
+
+      <article class="feature">
+        <span class="feature-num">01</span>
+        <div>
+          <h3>Dictate into anything</h3>
+          <p>Press Right Ctrl or your mouse's side button, talk, press again. Your words are typed into whatever has focus. A small pill at the bottom of the screen shows when Utter is listening.</p>
+        </div>
+      </article>
+
+      <article class="feature">
+        <span class="feature-num">02</span>
+        <div>
+          <h3>It cleans up how you talk</h3>
+          <p>"Um", "uh" and false starts disappear. With a local model in LM Studio or Ollama, AI polish also keeps your last self-correction: <span class="inline-demo"><s>Friday, no wait,</s> Thursday</span>.</p>
+        </div>
+      </article>
+
+      <article class="feature">
+        <span class="feature-num">03</span>
+        <div>
+          <h3>It learns your words</h3>
+          <p>Names, brands and jargon live in your dictionary. When you correct a misheard name right after dictating, Utter notices the edit and adds it, so <span class="inline-demo"><s>bright loop</s> Brightloop</span> only happens once.</p>
+        </div>
+      </article>
+
+      <article class="feature">
+        <span class="feature-num">04</span>
+        <div>
+          <h3>You can see everything</h3>
+          <p>One window shows whether Utter is listening, which microphone it uses, every fix it made, how fast you speak and where you dictate. Every switch is a toggle.</p>
+        </div>
+      </article>
+    </section>
+
+    <!-- Screenshot -->
+    <section class="showcase" aria-label="The Utter app">
+      <figure class="frame" id="frame">
+        <img src="assets/home.png" alt="The Utter window: a dictation banner with the animated Utter logo, then insights such as words per minute and fixes made." width="1224" height="781" loading="lazy">
+      </figure>
+      <figcaption>The Utter window. Closing it leaves dictation running.</figcaption>
+    </section>
+
+    <!-- Install -->
+    <section class="install" id="install">
+      <h2 class="section-title">Get <em>Utter</em></h2>
+      <p class="install-lede">Windows 10 or 11, 64-bit. Setup downloads about 1.5&nbsp;GB, mostly the speech model. A graphics card makes it faster but is not required.</p>
+
+      <div class="install-grid">
+        <div class="card card-download">
+          <p class="card-kicker">Download</p>
+          <h3>The app</h3>
+          <p>The latest release as a zip, with the setup guide inside.</p>
+          <a class="btn btn-primary" href="https://github.com/sz-747/utter-public/releases/latest">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11m0 0-4.5-4.5M12 15l4.5-4.5M5 19h14"/></svg>
+            Download latest release
+          </a>
+          <p class="card-note">Free and open source under the MIT license.</p>
+        </div>
+
+        <div class="card card-agent">
+          <p class="card-kicker">One-click setup</p>
+          <h3>Let your coding agent install it</h3>
+          <p>Paste this into Claude Code, Codex or any agent that can run commands on your PC. It follows the install guide and tells you what passed.</p>
+          <div class="prompt">
+            <pre id="prompt-text">Install Utter on this Windows PC. Follow https://github.com/sz-747/utter-public/blob/main/INSTALL.md step by step: clone the repo, set up the Python environment, download the speech model, and create the shortcuts. Ask me before anything that needs admin rights. Finish with the checks at the end of the guide and tell me what passed.</pre>
+            <button class="btn btn-copy" type="button" data-copy="prompt">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2.5"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></svg>
+              <span data-copy-label>Copy prompt</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="footer-brand">
+      <img src="assets/utter.png" alt="" width="26" height="26">
+      <span>Utter</span>
+    </div>
+    <p>MIT licensed. Speech recognition builds on <a href="https://github.com/HaujetZhao/CapsWriter-Offline">CapsWriter-Offline</a> and Qwen3-ASR.</p>
+    <a href="https://github.com/sz-747/utter-public">github.com/sz-747/utter-public</a>
+  </footer>
+
+  <script src="main.js"></script>
+</body>
+</html>

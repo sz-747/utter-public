@@ -181,7 +181,7 @@ if __name__ == "__main__":
     print("=" * 60)
 
     # Test text
-    plain_text = 5*"""In this fast-paced age of information overload, we always seem to be carried along by an invisible pressure. Anxiety, worry and fatigue flood in like a tide. We rush between work, study and friends, and often neglect the quiet ground deep inside us. Against this background, finding stillness has become an important way to look at ourselves again and get our balance back. """
+    plain_text = 5*"""This is a long sample paragraph for testing how the toast window wraps and scrolls plain text. It has several sentences of ordinary length, some short words and some longer ones, so line breaks land in different places. """
 
     markdown_text = """# Markdown test
 

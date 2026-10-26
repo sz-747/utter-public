@@ -292,16 +292,8 @@ class ResultProcessor:
                     potential_str += f" ... ({len(potential_matches)} in all)"
                 console.print(f'    Possible: [yellow]{potential_str}')
 
-        # Apps that need paste mode
         paste = Config.paste
         window_info = get_active_window_info()
-
-        if window_info:
-            window_title = window_info.get('title', '')
-            compatibility_apps = ['weixin', 'wechat', 'WeChat']
-            if window_title in compatibility_apps:
-                paste = True
-                logger.debug(f"{window_title} needs paste mode")
 
         # Nowhere to type (a menu, button or the desktop has focus): save it in Utter instead
         delivery = 'typed'

@@ -319,8 +319,6 @@ def enable_min_to_tray(name: Optional[str] = None, icon_path: Optional[str] = No
     """
     global _tray_instance
 
-    global _tray_instance
-
     # Set the exit callback
     if exit_callback is not None:
         _set_exit_callback(exit_callback)

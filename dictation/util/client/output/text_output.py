@@ -8,7 +8,6 @@ Provides the TextOutput class, which sends recognition results to the current wi
 from __future__ import annotations
 
 import asyncio
-import platform
 from typing import Optional
 import re
 
@@ -87,14 +86,8 @@ class TextOutput:
 
         # Paste the result (simulate Ctrl+V with pynput)
         controller = pynput_keyboard.Controller()
-        if platform.system() == 'Darwin':
-            # macOS: Command+V
-            with controller.pressed(pynput_keyboard.Key.cmd):
-                controller.tap('v')
-        else:
-            # Windows/Linux: Ctrl+V
-            with controller.pressed(pynput_keyboard.Key.ctrl):
-                controller.tap('v')
+        with controller.pressed(pynput_keyboard.Key.ctrl):
+            controller.tap('v')
 
         logger.debug("Sent paste command (Ctrl+V)")
 

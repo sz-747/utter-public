@@ -197,10 +197,6 @@ class FastRAG:
         """
         if not input_phonemes: return []
 
-        logger.debug(f"[DEBUG] FastRAG.search: input_phonemes type={type(input_phonemes)}, len={len(input_phonemes)}")
-        if input_phonemes:
-            logger.debug(f"[DEBUG] FastRAG.search: input_phonemes[0] type={type(input_phonemes[0])}, value={input_phonemes[0]}")
-
         # 1. Encode the input and get candidates
         input_codes = self.index.encode_input(input_phonemes)
         candidates = self.index.get_candidates(input_phonemes)

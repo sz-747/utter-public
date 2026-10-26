@@ -56,7 +56,7 @@ def write_llm_md(input_text: str, polished_text: str, role_name: str, time_start
         # Heading: time + audio link (if any)
         if file_audio:
             audio_filename = file_audio.name
-            f.write(f'#### [[{time_hms}]](({audio_filename})\n\n')
+            f.write(f'#### [{time_hms}]({audio_filename})\n\n')
         else:
             f.write(f'#### [{time_hms}]\n\n')
 

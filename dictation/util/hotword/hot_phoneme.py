@@ -173,27 +173,14 @@ class PhonemeCorrector:
         if not input_phonemes:
             return CorrectionResult(text=text, matchs=[], similars=[])
 
-        logger.debug(f"[DEBUG] input_phonemes type: {type(input_phonemes)}")
-        if input_phonemes:
-            logger.debug(f"[DEBUG] input_phonemes[0] type: {type(input_phonemes[0])}, value: {input_phonemes[0]}")
-            logger.debug(f"[DEBUG] input_phonemes[0].info type: {type(input_phonemes[0].info)}, value: {input_phonemes[0].info}")
-
         # 2. Search and match
         with self._lock:
             # Coarse filter
             fast_results = self.fast_rag.search(input_phonemes, top_k=100)
-            logger.debug(f"[DEBUG] fast_results type: {type(fast_results)}, count: {len(fast_results)}")
+            logger.debug(f"Dictionary candidates: {len(fast_results)}")
 
             # Input as info tuples: (value, kind, word start, word end, unused, char start, char end)
-            try:
-                input_processed = [p.info for p in input_phonemes]
-                logger.debug(f"[DEBUG] input_processed type: {type(input_processed)}, count: {len(input_processed)}")
-                if input_processed:
-                    logger.debug(f"[DEBUG] input_processed[0] type: {type(input_processed[0])}, value: {input_processed[0]}")
-            except Exception as e:
-                logger.error(f"[ERROR] Failed to build input_processed: {e}")
-                logger.error(f"[ERROR] input_phonemes details: {[(type(p), p) for p in input_phonemes[:5]]}")
-                raise
+            input_processed = [p.info for p in input_phonemes]
 
             # Fine matching
             matches, similars = self._find_matches(text, fast_results, input_processed)

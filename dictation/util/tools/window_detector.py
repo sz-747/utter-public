@@ -1,9 +1,8 @@
 """
 Foreground window detector
 
-Finds out which application is in the foreground, for compatibility settings
+Finds out which application is in the foreground (Windows), for Insights and the edit watcher
 """
-import platform
 
 
 def get_active_window_info() -> dict:
@@ -11,26 +10,12 @@ def get_active_window_info() -> dict:
     Return information about the foreground window
 
     Returns:
-        A dict with the window info:
+        A dict with the window info (empty if it cannot be read):
         - title: window title
         - class_name: window class name
         - process_name: process name
         - app_name: application name (best guess)
     """
-    system = platform.system()
-
-    if system == 'Windows':
-        return _get_windows_window_info()
-    elif system == 'Darwin':  # macOS
-        return _get_macos_window_info()
-    elif system == 'Linux':
-        return _get_linux_window_info()
-    else:
-        return {}
-
-
-def _get_windows_window_info() -> dict:
-    """Window detection on Windows"""
     try:
         import win32gui
         import win32process
@@ -67,90 +52,6 @@ def _get_windows_window_info() -> dict:
         return {}
     except Exception:
         return {}
-
-
-def _get_macos_window_info() -> dict:
-    """Window detection on macOS"""
-    try:
-        import subprocess
-        from plistlib import loads
-
-        # Get the foreground window through AppleScript
-        script = '''
-        tell application "System Events"
-            set frontApp to name of first application process whose frontmost is true
-            if frontApp contains "Safari" then
-                tell application frontApp
-                    if (count of windows) > 0 then
-                        set windowTitle to name of front window
-                    else
-                        set windowTitle to ""
-                    end if
-                end tell
-            else if frontApp contains "Terminal" then
-                tell application frontApp
-                    if (count of windows) > 0 then
-                        set windowTitle to name of front window
-                    else
-                        set windowTitle to ""
-                    end if
-                end tell
-            else
-                set windowTitle to ""
-            end if
-        end tell
-        return frontApp & "||" & windowTitle
-        '''
-
-        result = subprocess.run(
-            ['osascript', '-e', script],
-            capture_output=True,
-            text=True
-        )
-
-        if result.returncode == 0:
-            parts = result.stdout.strip().split('||')
-            app_name = parts[0] if len(parts) > 0 else ""
-            title = parts[1] if len(parts) > 1 else ""
-
-            return {
-                'title': title,
-                'class_name': '',
-                'process_name': app_name,
-                'app_name': app_name
-            }
-    except Exception:
-        pass
-
-    return {}
-
-
-def _get_linux_window_info() -> dict:
-    """Window detection on Linux"""
-    try:
-        import subprocess
-
-        # Get the active window with wmctrl
-        result = subprocess.run(
-            ['wmctrl', '-G', '-a', ':ACTIVE:'],
-            capture_output=True,
-            text=True
-        )
-
-        if result.returncode == 0:
-            parts = result.stdout.strip().split()
-            if len(parts) >= 5:
-                title = ' '.join(parts[5:])
-                return {
-                    'title': title,
-                    'class_name': '',
-                    'process_name': '',
-                    'app_name': title.split()[0] if title else ''
-                }
-    except Exception:
-        pass
-
-    return {}
 
 
 def _guess_app_name(title: str, class_name: str, process_name: str) -> str:

@@ -87,17 +87,6 @@ if not sys.argv[1:] and not _acquire_single_client_lock():
 logger = setup_logger('client', level=Config.log_level)
 
 
-def _check_macos_permissions() -> None:
-    """Check macOS permissions"""
-    if system() == 'Darwin' and not sys.argv[1:]:
-        if os.getuid() != 0:
-            print('On macOS the client must run as administrator to listen to the keyboard. Start it with sudo.')
-            input('Press Enter to exit')
-            sys.exit(1)
-        else:
-            os.umask(0o000)
-
-
 async def main_mic() -> None:
     """
     Microphone mode
@@ -275,9 +264,6 @@ def init_file(files: List[Path]) -> None:
 
 
 if __name__ == "__main__":
-    # Check macOS permissions
-    _check_macos_permissions()
-
     # Transcribe any files passed as arguments;
     # with no arguments, dictate from the microphone
     if sys.argv[1:]:

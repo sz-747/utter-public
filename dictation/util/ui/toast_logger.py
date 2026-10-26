@@ -11,8 +11,8 @@ def get_toast_logger(name: str) -> logging.Logger:
     """
     Get the logger for the toast modules
 
-    Checks whether the main program has set up logging:
-    - If it has (a 'client' or 'server' logger has handlers), use that logger
+    Checks whether the client has set up logging:
+    - If it has (the 'client' logger has handlers), use that logger
     - If not, create a standalone logger that prints to the console
 
     Args:
@@ -21,16 +21,11 @@ def get_toast_logger(name: str) -> logging.Logger:
     Returns:
         The configured logger
     """
-    # Look for the main program's logger
     client_logger = logging.getLogger('client')
-    server_logger = logging.getLogger('server')
 
     if client_logger.handlers:
         # The client has set up logging: use its logger
         return client_logger
-    elif server_logger.handlers:
-        # The server has set up logging: use its logger
-        return server_logger
     else:
         # Running standalone: create our own logger
         logger = logging.getLogger(name)
@@ -57,10 +52,8 @@ def configure_toast_logging(level: int = logging.DEBUG) -> None:
     Args:
         level: Log level
     """
-    # Don't override the main program's setup
-    client_logger = logging.getLogger('client')
-    server_logger = logging.getLogger('server')
-    if client_logger.handlers or server_logger.handlers:
+    # Don't override the client's setup
+    if logging.getLogger('client').handlers:
         return
 
     # Configure the root logger

@@ -64,16 +64,6 @@ def on_stop_pressed():
     logger.debug("Esc pressed, stopping LLM output")
     _stop_event.set()
 
-    # Close the toast, if there is one
-    try:
-        from util.ui.toast import ToastMessageManager
-        toast_manager = ToastMessageManager()
-        # Note: close_last_toast() does not exist, so this stays commented out
-        # TODO: close the most recent toast
-        # toast_manager.close_last_toast()
-    except Exception as e:
-        logger.warning(f"Could not close the toast: {e}")
-
 
 def start_monitor():
     """Start watching for the interrupt key (called automatically on import)"""

@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import threading
 import time
-import unicodedata
 from pathlib import Path
 from typing import Dict, Callable, Optional, TYPE_CHECKING, Any, Tuple
 
@@ -85,23 +84,9 @@ class HotwordManager:
 
         self._observer: Optional[Observer] = None
 
-    def _get_display_width(self, text: str) -> int:
-        """Display width of a string (wide characters count as 2)."""
-        width = 0
-        for char in text:
-            if unicodedata.east_asian_width(char) in ('W', 'F', 'A'):
-                width += 2
-            else:
-                width += 1
-        return width
-
     def _format_msg(self, label: str, filename: str, count: int) -> str:
         """An aligned load message."""
-        w = self._get_display_width(label)
-        padding1 = " " * max(0, 12 - w)
-        w2 = self._get_display_width(filename)
-        padding2 = " " * max(0, 16 - w2)
-        return f"[bold cyan]{label}{padding1}: [/][cyan]{filename}{padding2}[/] loaded [green]{count:3d}[/]"
+        return f"[bold cyan]{label:<12}: [/][cyan]{filename:<16}[/] loaded [green]{count:3d}[/]"
 
     def load_all(self) -> None:
         """Load everything for the first time."""

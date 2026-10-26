@@ -9,7 +9,6 @@ One place for clipboard operations:
 4. Paste text (simulates Ctrl+V)
 """
 import asyncio
-import platform
 from contextlib import contextmanager
 import pyclip
 from pynput import keyboard
@@ -141,14 +140,8 @@ async def paste_text(text: str, restore_clipboard: bool = True):
 
     # Paste it (pynput simulates Ctrl+V)
     controller = keyboard.Controller()
-    if platform.system() == 'Darwin':
-        # macOS: Command+V
-        with controller.pressed(keyboard.Key.cmd):
-            controller.tap('v')
-    else:
-        # Windows/Linux: Ctrl+V
-        with controller.pressed(keyboard.Key.ctrl):
-            controller.tap('v')
+    with controller.pressed(keyboard.Key.ctrl):
+        controller.tap('v')
 
     logger.debug("Sent the paste command (Ctrl+V)")
 

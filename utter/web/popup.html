@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Utter call</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; height: 100%; overflow: hidden; }
+    body {
+      background: #141716; color: #f5f3ee; font: 14px/1.35 "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+      display: flex; align-items: center; gap: 12px; padding: 0 12px 0 18px; user-select: none;
+      -webkit-font-smoothing: antialiased;
+    }
+    button { font: inherit; cursor: pointer; border: 0; }
+    svg { flex: none; }
+    .icon svg { width: 22px; height: 22px; color: #f0b33e; display: block; }
+    .main { flex: 1; min-width: 0; }
+    #actions { display: flex; align-items: center; gap: 6px; flex: none; }
+    .title { font-size: 15.5px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .sub { display: flex; align-items: center; gap: 6px; font-size: 12.5px; color: rgba(245, 243, 238, .65); margin-top: 2px; white-space: nowrap; }
+    .dot { width: 7px; height: 7px; border-radius: 50%; background: #5fbfa9; flex: none; }
+    .dot.rec { background: #e0483d; animation: pulse 1.2s infinite; }
+    @keyframes pulse { 50% { opacity: .35; } }
+    .start { display: flex; align-items: center; gap: 10px; border-radius: 11px; padding: 8px 14px 8px 8px; background: #fbf7df; color: #1c1b19; text-align: left; }
+    .start:hover { background: #fff; }
+    .start .logo { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 8px; background: #1c1b19; color: #fbf7df; }
+    .start .logo svg { width: 15px; height: 15px; }
+    .start strong { display: block; font-size: 13.5px; }
+    .start small { font-size: 12px; color: #6f6b63; }
+    .ghost { background: transparent; color: rgba(245, 243, 238, .8); border: 1px solid rgba(255, 255, 255, .22); border-radius: 9px; padding: 7px 12px; }
+    .ghost:hover { border-color: rgba(255, 255, 255, .55); color: #fff; }
+    .close { background: transparent; color: rgba(245, 243, 238, .55); width: 28px; height: 28px; border-radius: 7px; display: grid; place-items: center; }
+    .close:hover { background: rgba(255, 255, 255, .1); color: #fff; }
+    .close svg { width: 15px; height: 15px; }
+  </style>
+</head>
+<body>
+  <div class="icon" id="icon"></div>
+  <div class="main"><div class="title" id="title">Call detected</div><div class="sub" id="sub"></div></div>
+  <div id="actions"></div>
+
+  <script src="icons.js"></script>
+  <script>
+    'use strict';
+    // A small always-on-top window shown while a call is on: offer to take notes, then a timer and Stop.
+    const $ = (id) => document.getElementById(id);
+    const esc = (v) => String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    const clock = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
+    let last = '';
+
+    async function refresh() {
+      let state;
+      try { state = await window.pywebview.api.get_call_popup(); } catch (e) { return; }
+      if (!state || state.error) return;
+      const call = state.call || {};
+      let html;
+      if (state.mode === 'recording') {
+        const live = state.live || {};
+        html = [icon('record'), esc(call.title || 'Meeting notes'),
+          `<span class="dot rec"></span>${live.stopping ? 'Finishing the transcript…' : `Recording · ${clock(live.elapsed || 0)}`}`,
+          live.stopping ? '' : `<button class="ghost" data-act="open">Open</button> <button class="ghost" data-act="stop">Stop</button>`];
+      } else if (state.mode === 'offer') {
+        const code = call.code && call.title !== call.app ? ` · ${esc(call.code)}` : (call.code && call.name ? ` · ${esc(call.code)}` : '');
+        html = [icon('video'), esc(call.title),
+          `<span class="dot"></span>In a call${call.title !== call.app ? ` · ${esc(call.app)}` : code}`,
+          `<button class="start" data-act="start"><span class="logo">${icon('record')}</span><span><strong>Start Notetaker</strong><small>Take notes of this call</small></span></button>
+           <button class="close" data-act="dismiss" title="Not this call">${icon('x')}</button>`];
+      } else {
+        return;
+      }
+      const key = html.join('|');
+      if (key === last) return;
+      last = key;
+      [$('icon').innerHTML, $('title').innerHTML, $('sub').innerHTML, $('actions').innerHTML] = html;
+    }
+
+    document.addEventListener('click', async (ev) => {
+      const act = ev.target.closest('[data-act]')?.dataset.act;
+      if (!act) return;
+      const api = window.pywebview.api;
+      if (act === 'start') {
+        const result = await api.start_call_notes();
+        if (result && result.error) { $('sub').textContent = result.error; return; }
+      } else if (act === 'dismiss') {
+        await api.dismiss_call();
+      } else if (act === 'stop') {
+        await api.stop_notetaker();
+      } else if (act === 'open') {
+        await api.open_notetaker();
+      }
+      refresh();
+    });
+
+    window.addEventListener('pywebviewready', () => { refresh(); setInterval(refresh, 1000); });
+  </script>
+</body>
+</html>

@@ -39,7 +39,7 @@ Anything you would otherwise type: messages, email, documents, notes, prompts fo
 
 ## Evidence
 
-- **180 offline tests** cover the window (79), the dictation client (94) and the bundled diagnosis skill (7): settings, the dictionary formats, learning from edits, the AI polish guard, insights, the Notetaker and the MCP tools. They need no speech server.
+- **185 offline tests** cover the window (79), the dictation client (99) and the bundled diagnosis skill (7): settings, the dictionary formats, learning from edits, the AI polish guard, insights, the Notetaker and the MCP tools. They need no speech server.
 - **The English dictionary matcher** was checked once, when the Chinese-language branch was removed: it gave the same results as before on 65 recorded matching cases. The main cases are kept as a test.
 - **Limits:** the tests do not use a microphone or type into real apps. Speech accuracy depends on Qwen3-ASR, your microphone and your accent, and has not been measured for this repo.
 

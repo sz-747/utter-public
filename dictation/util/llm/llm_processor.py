@@ -12,12 +12,13 @@ import time
 from typing import Callable, Optional, Dict, Any, List, Tuple
 from util.llm.llm_role_config import RoleConfig
 from util.llm.llm_interfaces import IContextManager
-from util.llm.llm_client_pool import ClientPool
+from util.llm.llm_client_pool import ClientPool, local_server_listening
 from util.llm.llm_exceptions import (
     APIException,
     wrap_openai_error, OpenAIErrorWrapper,
-    TimeoutErrorWrapper
+    TimeoutErrorWrapper, ConnectionErrorWrapper
 )
+from util.llm.llm_error_handler import note_llm_success
 from . import logger
 
 
@@ -54,6 +55,15 @@ class LLMProcessor:
         """
         logger.info(f"Starting LLM processing, model: {role_config.model}")
 
+        # A local model server that is off fails at once instead of after the client's slow retries
+        api_url = ClientPool.api_url_for(role_config.provider, role_config.api_url)
+        if not local_server_listening(api_url):
+            error = ConnectionErrorWrapper(
+                ConnectionRefusedError(f'nothing is listening at {api_url}'), role_config.provider
+            )
+            logger.error(f"LLM API call failed: {error}")
+            raise error
+
         # Get the client
         logger.debug(f"Getting the LLM client, provider: {role_config.provider}, API: {role_config.api_url}")
         client = self.client_pool.get_client(
@@ -66,7 +76,7 @@ class LLMProcessor:
         request_params = self._build_request_params(role_config, messages)
 
         try:
-            return self._stream_request(
+            result = self._stream_request(
                 client,
                 request_params,
                 callback,
@@ -75,6 +85,8 @@ class LLMProcessor:
                 context_manager,
                 messages
             )
+            note_llm_success()
+            return result
 
         except OpenAIErrorWrapper:
             # Already-wrapped OpenAI exception: re-raise as is

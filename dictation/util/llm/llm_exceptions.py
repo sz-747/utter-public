@@ -44,7 +44,7 @@ class TimeoutErrorWrapper(OpenAIErrorWrapper):
 
 class ConnectionErrorWrapper(OpenAIErrorWrapper):
     """Connection failed"""
-    user_message = "Could not connect to the API, check the network and the API URL"
+    user_message = "Can't reach the model server (LM Studio: run lms server start). Your words were kept without polish."
 
 
 class APIResponseErrorWrapper(OpenAIErrorWrapper):

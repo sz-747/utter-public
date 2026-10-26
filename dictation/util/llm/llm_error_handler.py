@@ -15,6 +15,16 @@ from util.llm.llm_exceptions import (
 from . import logger
 
 
+# A stopped model server fails every dictation the same way: show it once, until a request succeeds
+_connection_error_shown = False
+
+
+def note_llm_success():
+    """Called after a request succeeds, so the next connection failure is shown again."""
+    global _connection_error_shown
+    _connection_error_shown = False
+
+
 def get_user_friendly_message(error: Exception) -> str:
     """
     Return a friendly error message
@@ -88,7 +98,7 @@ def show_error_notification(error: Exception, role_name: str = "LLM"):
 
         # Errors use a red background and a larger size
         msg = ToastMessage(
-            text=f"❌ {role_name}: {user_msg}",
+            text=f"❌ {role_name or 'AI polish'}: {user_msg}",
             font_size=16,           # Larger font
             bg='#8B0000',           # Dark red
             fg='white',
@@ -119,11 +129,16 @@ def handle_llm_error(error: Exception, original_text: str, role_name: str = "LLM
     Returns:
         (output text, success); the output is always the original text or fallback_text, so no dictation is lost
     """
+    global _connection_error_shown
     result = fallback_text if fallback_text is not None else original_text
     if should_fallback_to_original(error):
         logger.info(f"[{role_name}] Processing failed, falling back to the original text: {error}")
+    elif isinstance(error, ConnectionErrorWrapper) and _connection_error_shown:
+        logger.info(f"[{role_name}] Model server still unreachable, typed the original text")
     else:
         # Settings or connection problem: tell the user, and output the original text as usual
         show_error_notification(error, role_name)
+        if isinstance(error, ConnectionErrorWrapper):
+            _connection_error_shown = True
         logger.info(f"[{role_name}] Processing failed, showed the error and typed the original text")
     return (result, False)

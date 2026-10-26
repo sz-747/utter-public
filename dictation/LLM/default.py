@@ -10,7 +10,7 @@ process = True                       # Enable LLM processing
 # ==================== API settings ====================
 # Local LM Studio (OpenAI-compatible API; start LM Studio's local server first: lms server start)
 # To switch back to Ollama: provider = 'ollama', api_url = '', model = 'qwen3:8b', extra_options = {}
-provider = 'openai'                     # API provider: 'ollama', 'openai' (includes compatible APIs such as LM Studio), 'deepseek', 'moonshot', 'zhipu', 'claude', 'gemini'
+provider = 'openai'                     # API provider: 'ollama', 'openai' (includes compatible APIs such as LM Studio), 'deepseek', 'cerebras', 'claude', 'gemini'
 api_url = 'http://127.0.0.1:1234/v1'    # 127.0.0.1 rather than localhost: Windows tries IPv6 first and stalls ~2 s on every connection
                                         # Leave empty to use the provider's default URL
 api_key = 'lm-studio'                   # LM Studio does not check it, but the OpenAI client needs a non-empty value

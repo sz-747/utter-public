@@ -52,9 +52,6 @@ class APIConfig:
         'ollama': 'http://127.0.0.1:11434',   # not localhost: Windows tries IPv6 first and stalls ~2 s per connection
         'openai': 'https://api.openai.com/v1',
         'deepseek': 'https://api.deepseek.com/v1',
-        'moonshot': 'https://api.moonshot.cn/v1',
-        'zhipu': 'https://open.bigmodel.cn/api/paas/v4',
-        'volcengine': 'https://ark.cn-beijing.volces.com/api/v3',
         'cerebras': 'https://api.cerebras.ai/v1',
         'claude': 'https://api.anthropic.com/v1/',                                # OpenAI-compatible endpoint
         'gemini': 'https://generativelanguage.googleapis.com/v1beta/openai/',     # OpenAI-compatible endpoint
@@ -65,8 +62,6 @@ class APIConfig:
         'ollama': 'ollama',
         'openai': '',
         'deepseek': '',
-        'moonshot': '',
-        'zhipu': '',
         'cerebras': '',
     }
 
@@ -77,8 +72,6 @@ class APIConfig:
         'ollama': 20.0,       # Local model
         'openai': 10.0,       # OpenAI API
         'deepseek': 10.0,     # DeepSeek API
-        'moonshot': 10.0,     # Moonshot API
-        'zhipu': 10.0,        # Zhipu API
         'cerebras': 10.0,     # Cerebras API
         'claude': 10.0,       # Claude API
         'gemini': 10.0,       # Gemini API

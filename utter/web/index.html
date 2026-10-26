@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Utter</title>
+  <link rel="stylesheet" href="app.css">
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="brand">
+        <!-- Same geometry as assets/utter.ico (assets/make_icon.py) -->
+        <svg class="brand-logo" viewBox="0 0 64 64" aria-hidden="true">
+          <rect width="64" height="64" rx="15" fill="#1F5F57"/>
+          <g stroke="#fff" stroke-width="5.5" stroke-linecap="round" fill="none">
+            <path d="M13.5 27v10M50.5 27v10"/><path d="M24 19v16a8 8 0 0 0 16 0V19"/>
+          </g>
+        </svg>
+        Utter
+      </div>
+      <button class="nav-item active" data-page="home"><svg data-icon="home"></svg>Home</button>
+      <button class="nav-item" data-page="insights"><svg data-icon="chart"></svg>Insights</button>
+      <button class="nav-item" data-page="dictionary"><svg data-icon="book"></svg>Dictionary</button>
+      <button class="nav-item" data-page="notetaker"><svg data-icon="record"></svg>Notetaker<span class="nav-rec" id="nav-rec" hidden></span></button>
+
+      <div class="nav-spacer"></div>
+      <button class="nav-item" data-action="settings"><svg data-icon="gear"></svg>Settings</button>
+      <button class="nav-item" data-action="help"><svg data-icon="help"></svg>Help</button>
+    </aside>
+
+    <div class="main">
+      <div class="topbar">
+        <button class="icon-btn" id="theme-toggle" title="Switch light or dark"><svg data-icon="moon"></svg></button>
+      </div>
+      <div class="panel" id="panel"><div class="page" id="page"></div></div>
+    </div>
+  </div>
+
+  <div class="backdrop" id="backdrop"></div>
+  <div class="popover" id="popover" hidden></div>
+  <div class="toast" id="toast"><span id="toast-text"></span><button id="toast-action"></button></div>
+
+  <script src="icons.js"></script>
+  <script src="app.js"></script>
+  <script src="notetaker.js"></script>
+</body>
+</html>

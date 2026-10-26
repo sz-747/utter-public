@@ -35,7 +35,7 @@ Product choices Utter has made. Reopen one only with new evidence or a changed s
 ## DS-006 Coding agents are how a cloud model reads dictations
 - **Question:** How does a cloud model read your dictations without a public server?
 - **Why it matters:** A public endpoint would expose the dictation archive to the internet; coding agents run on this PC and can start the MCP over stdio with logins you already have.
-- **Current behavior:** Codex, Claude Code and Pi each list an `utter` server in their own MCP config (see the README); `UTTER_MCP_CLIENT` in that entry's environment makes each app's last use show separately. Utter's MCP page shows a read-only "Coding agents" card (it never writes their configs) and the LM Studio card. What an agent reads goes to its model's provider.
+- **Current behavior:** Codex, Claude Code and Pi each list an `utter` server in their own MCP config (see INSTALL.md); `UTTER_MCP_CLIENT` in that entry's environment makes each app's last use show separately. Utter's MCP page shows a read-only "Coding agents" card (it never writes their configs) and the LM Studio card. What an agent reads goes to its model's provider.
 - **Reopen trigger:** Access from a phone or the web is needed.
 
 ## DS-007 Notetaker is its own page, records without a bot, keeps text only

@@ -33,7 +33,7 @@ py -3.11 -m venv .venv
 
 ## 3. Speech server and model
 
-Skip this step on a machine that will use another PC's speech server over Tailscale (see "Remote dictation" in README.md).
+Skip this step on a machine that will use another PC's speech server over Tailscale (see [Remote dictation over Tailscale](#remote-dictation-over-tailscale)).
 
 The speech server is the packaged CapsWriter-Offline v2.6 release (`CapsWriter-Offline-20260914.zip`, about 110 MB, from <https://github.com/HaujetZhao/CapsWriter-Offline/releases/tag/v2.6>); the model is Qwen3-ASR 1.7B (`Qwen3-ASR-1.7B-q4_k.zip`, about 1.4 GB, from <https://github.com/HaujetZhao/CapsWriter-Offline/releases/tag/models>). Download and unpack both with these commands; no browser is needed. The server zip has everything inside a `CapsWriter-Offline` folder, and the model zip holds just the three model files.
 
@@ -82,6 +82,55 @@ Report each as passed or failed:
 
 1. `Get-NetTCPConnection -LocalPort 6016 -State Listen` returns a listener (speech server running; skip on a remote-dictation machine).
 2. `$base\dictation\appdata\status.json` exists and was updated in the last 10 seconds (dictation client running).
-3. The three test suites in README.md > Test pass, run from `$base`.
+3. The three test suites in [Test](#test) pass, run from `$base`.
 4. The Utter window opens and its banner says **Utter is ready** with a microphone listed.
 5. Ask the person to press Right Ctrl, say a sentence in Notepad, and press Right Ctrl again. The sentence should be typed.
+
+---
+
+The sections below are reference for later changes. Use them when the person asks.
+
+## Run
+
+```powershell
+utter.cmd
+```
+
+Opening Utter starts dictation if it is off (Settings > System can turn that off). Closing the window leaves dictation running. Press Right Ctrl (or mouse button X2), speak, and press it again.
+
+To run dictation without the window: `dictation\start-dictation.cmd`, and `dictation\stop-dictation.cmd` to stop it.
+
+## Configure
+
+- **Settings in the window**: shortcuts, microphone, sounds, muting other apps, learning, AI review, AI polish and output.
+- **The dictionary**: `dictation\hot.txt` (words), `dictation\hot-rule.txt` (replacement rules) and `dictation\hot-rectify.txt` (examples for AI polish). They are created from the `*.example.txt` files the first time the client runs, and Git ignores them. Words can also be edited in the window's Dictionary.
+- **Everything else**: `dictation\config_client.py` (defaults) and `dictation\LLM\default.py` (the AI polish model and prompt). Step 6 covers pointing AI polish at LM Studio or Ollama (`provider = 'ollama'`); after that, switch it on in Settings > Dictation.
+
+## Remote dictation over Tailscale
+
+A weaker machine can use another PC's speech server:
+
+1. On the PC with the speech server, keep the server on `127.0.0.1` and share the port on the tailnet: `tailscale serve --bg --tcp 6016 tcp://127.0.0.1:6016`.
+2. On the laptop, install Utter but skip step 3. In `dictation\config_client.py`, set `addr` to the PC's Tailscale name (for example `'desktop.your-tailnet.ts.net'`).
+
+With no local server installed, Utter starts only the client, and the banner names the PC it is using.
+
+## MCP for coding agents
+
+Add a server named `utter` to each agent's MCP config that runs, from the Utter folder:
+
+```
+.venv\Scripts\python.exe -m utter.mcp_server
+```
+
+Set `UTTER_MCP_CLIENT` (for example `codex` or `claude`) in that entry's environment so Utter shows each agent's last use. LM Studio can be added from Settings > MCP.
+
+## Test
+
+```powershell
+.venv\Scripts\python.exe -m unittest discover -s tests -t .
+cd dictation; ..\.venv\Scripts\python.exe -m unittest discover -s util -p "test_*.py" -t .; cd ..
+.venv\Scripts\python.exe -B -m unittest discover -s skills/utter-stabilise/tests
+```
+
+The tests run offline and need no speech server. Two of them touch Windows itself and clean up after themselves: one copies text to the clipboard and puts the previous clipboard back, and one stores and deletes a test entry (`Utter/unit-test-secret`) in Windows Credential Manager.

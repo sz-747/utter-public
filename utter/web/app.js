@@ -766,7 +766,7 @@ function mcpBody(c) {
     <p class="note">What a coding agent reads is sent to its model's provider, such as OpenAI for Codex and Anthropic for Claude Code. LM Studio keeps it on this PC.</p>`;
 }
 
-// The coding agents start the Utter MCP on this PC. Each agent's own config lists it (see the README),
+// The coding agents start the Utter MCP on this PC. Each agent's own config lists it (see INSTALL.md),
 // so this card only reports; adding or removing Utter happens in that config.
 function agentsCard(list) {
   const lines = list.map((a) => {

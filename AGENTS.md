@@ -8,5 +8,5 @@ Utter is a pywebview (WebView2) desktop window (`utter/`) over the dictation cli
 - English only (DS-011): no language-specific processing for other languages.
 - UI is plain HTML/CSS/JS in `utter/web` with no build step. Python methods the page calls live in `utter/api.py` and return JSON data or `{'error': ...}`.
 - One Python environment, `.venv` at the repo root, serves the window and the client.
-- Before committing, run all three test suites (see README.md > Test).
+- Before committing, run all three test suites (see INSTALL.md > Test).
 - Product choices already made are in `docs/decision-surfaces.md`.

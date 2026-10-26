@@ -161,7 +161,13 @@ kbd {
 .feature:nth-child(odd) { padding-left: clamp(0px, 8vw, 120px); }
 .feature-num { font: italic 400 clamp(56px, 8vw, 104px)/.8 var(--serif); color: transparent; -webkit-text-stroke: 1px var(--cream-faint); }
 .feature h3 { margin: 4px 0 10px; font: 600 clamp(22px, 2.6vw, 28px)/1.2 var(--sans); letter-spacing: -.015em; }
-.feature p { margin: 0; max-width: 560px; color: var(--cream-dim); }
+.feature p { margin: 0; color: var(--cream-dim); }
+/* the part of the Utter window each feature describes, under its text */
+.feature-shot { margin: 22px 0 0; }
+.feature-shot img {
+  width: 100%; height: auto; border-radius: 14px; border: 1px solid var(--line-2);
+  background: #1b1c1c; box-shadow: 0 18px 50px -24px rgba(0, 0, 0, .8);
+}
 .inline-demo { color: var(--cream); white-space: nowrap; }
 .inline-demo s { color: var(--strike); text-decoration-thickness: 2px; margin-right: .3em; }
 
@@ -191,7 +197,7 @@ kbd {
 /* ---------- install ---------- */
 .install { max-width: 1080px; margin: clamp(100px, 13vw, 170px) auto 0; padding: 0 var(--gutter); }
 .install .section-title { margin-bottom: 18px; }
-.install-lede { max-width: 640px; margin: 0 0 44px; color: var(--cream-dim); }
+.install-lede { margin: 0 0 44px; color: var(--cream-dim); }
 .install-grid { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, .8fr); gap: 20px; }
 .card {
   border-radius: 22px; padding: clamp(24px, 3.4vw, 38px); border: 1px solid var(--line);

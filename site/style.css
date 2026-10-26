@@ -174,7 +174,19 @@ kbd {
   transition: transform 1.2s cubic-bezier(.2, .7, .1, 1), opacity 1.2s;
 }
 .frame.in { transform: rotateX(0) scale(1); opacity: 1; }
-.showcase figcaption { margin-top: 18px; text-align: center; font-size: 14px; color: var(--cream-faint); }
+.frame video { display: block; width: 100%; height: auto; background: var(--ink-2); }
+.showcase .section-title { text-align: center; }
+.showcase figcaption { margin: 20px auto 0; max-width: 620px; min-height: 3em; text-align: center; font-size: 16px; color: var(--cream-dim); text-wrap: balance; }
+.tour-tabs { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin: 0 0 28px; }
+.tour-tab {
+  position: relative; overflow: hidden; padding: 9px 18px; border-radius: 999px; cursor: pointer;
+  font: 500 14.5px var(--sans); color: var(--cream-dim); background: transparent; border: 1px solid var(--line-2);
+  transition: color .2s, border-color .2s, background .2s;
+}
+.tour-tab:hover { color: var(--cream); border-color: var(--cream-faint); }
+.tour-tab.active { color: var(--ink); background: var(--cream); border-color: var(--cream); }
+/* progress of the playing clip, drawn under the active tab's label */
+.tour-tab.active::after { content: ""; position: absolute; left: 0; bottom: 0; height: 2px; width: calc(var(--p, 0) * 100%); background: var(--teal-deep); }
 
 /* ---------- install ---------- */
 .install { max-width: 1080px; margin: clamp(100px, 13vw, 170px) auto 0; padding: 0 var(--gutter); }

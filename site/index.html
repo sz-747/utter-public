@@ -118,12 +118,19 @@
       </article>
     </section>
 
-    <!-- Screenshot -->
-    <section class="showcase" aria-label="The Utter app">
+    <!-- A tour of the window: one clip at a time, each plays through, then the next -->
+    <section class="showcase" id="tour" aria-label="A tour of the Utter window">
+      <h2 class="section-title">See it <em>work</em>.</h2>
+      <div class="tour-tabs" role="tablist" aria-label="Parts of the Utter window">
+        <button class="tour-tab active" role="tab" aria-selected="true" data-clip="dictate" data-caption="Press Right Ctrl and speak. Utter listens, types, and keeps every dictation in case it lands in the wrong place.">Dictate</button>
+        <button class="tour-tab" role="tab" aria-selected="false" data-clip="insights" data-caption="How fast you speak, how much Utter fixed, and the time you save over typing.">Insights</button>
+        <button class="tour-tab" role="tab" aria-selected="false" data-clip="dictionary" data-caption="Names you correct are learned on their own. Search every word and replacement.">Dictionary</button>
+        <button class="tour-tab" role="tab" aria-selected="false" data-clip="notetaker" data-caption="Record a call, then read the summary, action items and full transcript.">Notetaker</button>
+      </div>
       <figure class="frame" id="frame">
-        <img src="assets/home.png" alt="The Utter window: a dictation banner with the animated Utter logo, then recent dictations; Insights, Dictionary and Notetaker are in the sidebar." width="1224" height="781" loading="lazy">
+        <video id="tour-video" muted playsinline preload="metadata" width="1280" height="800" poster="assets/tour/dictate.jpg" src="assets/tour/dictate.mp4" aria-label="The Utter window in use, recorded with sample data"></video>
       </figure>
-      <figcaption>The Utter window. Closing it leaves dictation running.</figcaption>
+      <figcaption id="tour-caption" aria-live="polite">Press Right Ctrl and speak. Utter listens, types, and keeps every dictation in case it lands in the wrong place.</figcaption>
     </section>
 
     <!-- Install -->

@@ -247,9 +247,45 @@ async function copyPrompt(button) {
 
 document.querySelectorAll('[data-copy="prompt"]').forEach((button) => button.addEventListener('click', () => copyPrompt(button)));
 
-/* screenshot tilts flat as it scrolls into view */
+/* tour: the frame tilts flat as it scrolls into view; clips play one after another while it is on screen */
 const frame = document.getElementById('frame');
-new IntersectionObserver(([entry]) => { if (entry.isIntersecting) frame.classList.add('in'); }, { threshold: 0.25 }).observe(frame);
+const video = document.getElementById('tour-video');
+const caption = document.getElementById('tour-caption');
+const tabs = [...document.querySelectorAll('.tour-tab')];
+let onScreen = false;
+
+function showClip(tab, play = true) {
+  tabs.forEach((t) => {
+    const active = t === tab;
+    t.classList.toggle('active', active);
+    t.setAttribute('aria-selected', active);
+    t.style.setProperty('--p', 0);
+  });
+  const clip = tab.dataset.clip;
+  video.poster = `assets/tour/${clip}.jpg`;
+  video.src = `assets/tour/${clip}.mp4`;
+  caption.textContent = tab.dataset.caption;
+  if (play && onScreen && !reduceMotion) video.play().catch(() => {});
+}
+
+tabs.forEach((tab) => tab.addEventListener('click', () => showClip(tab)));
+video.addEventListener('timeupdate', () => {
+  const active = tabs.find((t) => t.classList.contains('active'));
+  if (active && video.duration) active.style.setProperty('--p', video.currentTime / video.duration);
+});
+video.addEventListener('ended', () => {
+  const next = tabs[(tabs.findIndex((t) => t.classList.contains('active')) + 1) % tabs.length];
+  setTimeout(() => showClip(next), 700);
+});
+if (reduceMotion) video.controls = true;
+
+new IntersectionObserver(([entry]) => {
+  onScreen = entry.isIntersecting;
+  if (onScreen) frame.classList.add('in');
+  if (reduceMotion) return;
+  if (onScreen) video.play().catch(() => {});
+  else video.pause();
+}, { threshold: 0.35 }).observe(frame);
 
 startWave();
 bindHold();

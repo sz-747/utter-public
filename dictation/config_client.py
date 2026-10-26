@@ -89,7 +89,7 @@ class ClientConfig:
     file_save_json = True       # File transcription: save .json with raw timestamps
     file_save_merge = False     # File transcription: save merge.txt (one unsplit paragraph)
 
-    udp_broadcast = True                # Broadcast results over UDP
+    udp_broadcast = False               # Broadcast results over UDP, for other programs on this PC to read
     udp_broadcast_targets = [           # UDP broadcast targets: (address, port)
         ('127.255.255.255', 6017),      # local loopback broadcast
         # ('192.168.1.255', 6017),      # LAN broadcast (example)

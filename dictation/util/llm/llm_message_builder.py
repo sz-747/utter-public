@@ -82,20 +82,11 @@ class MessageBuilder:
 
         # 3.1 Hotword list
         if role_config.enable_hotwords and hotwords:
-            logger.debug(f"[DEBUG] hotwords type={type(hotwords)}, len={len(hotwords)}")
-            if hotwords:
-                logger.debug(f"[DEBUG] hotwords[0] type={type(hotwords[0])}, value={hotwords[0]}")
-            try:
-                # hotwords look like [(source, match, score), ...]
-                words = [item[1] for item in hotwords]
-
-                if words:
-                    context_parts.append(f"{role_config.prompt_prefix_hotwords}[{', '.join(words)}]")
-                    logger.debug(f"[Message builder] Added the hotword list")
-            except Exception as e:
-                logger.error(f"[ERROR] Failed to process hotwords: {e}")
-                logger.error(f"[ERROR] hotwords details: {[(type(hw), hw) for hw in hotwords[:5]]}")
-                raise
+            # hotwords look like [(source, match, score), ...]
+            words = [item[1] for item in hotwords]
+            if words:
+                context_parts.append(f"{role_config.prompt_prefix_hotwords}[{', '.join(words)}]")
+                logger.debug(f"[Message builder] Added the hotword list")
 
         # 3.2 Correction history (raw data from the RAG, formatted here)
         if role_config.enable_rectify:
@@ -174,7 +165,7 @@ class MessageBuilder:
             # 1. Detailed stats at DEBUG level
             logger.debug("\n".join(debug_msg))
 
-            # 2. Only the latest user message at INFO level
+            # 2. The latest user message (the dictated text), also at DEBUG so logs do not keep it by default
             last_msg = messages[-1]
             content = last_msg.get('content', '')
             if isinstance(content, list):
@@ -187,7 +178,7 @@ class MessageBuilder:
                 f"{content}",
                 f"{'='*70}\n"
             ]
-            logger.info("\n".join(info_msg))
+            logger.debug("\n".join(info_msg))
 
         except Exception as e:
             logger.error(f"Failed to log the messages: {e}")

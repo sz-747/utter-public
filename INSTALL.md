@@ -35,12 +35,24 @@ py -3.11 -m venv .venv
 
 Skip this step on a machine that will use another PC's speech server over Tailscale (see "Remote dictation" in README.md).
 
-The speech server is the packaged CapsWriter-Offline v2.6 release; the model is Qwen3-ASR 1.7B. Download both from the official releases:
+The speech server is the packaged CapsWriter-Offline v2.6 release (`CapsWriter-Offline-20260914.zip`, about 110 MB, from <https://github.com/HaujetZhao/CapsWriter-Offline/releases/tag/v2.6>); the model is Qwen3-ASR 1.7B (`Qwen3-ASR-1.7B-q4_k.zip`, about 1.4 GB, from <https://github.com/HaujetZhao/CapsWriter-Offline/releases/tag/models>). Download and unpack both with these commands; no browser is needed. The server zip has everything inside a `CapsWriter-Offline` folder, and the model zip holds just the three model files.
 
-- Server: `CapsWriter-Offline-20260914.zip` from <https://github.com/HaujetZhao/CapsWriter-Offline/releases/tag/v2.6>
-- Model: `Qwen3-ASR-1.7B-q4_k.zip` (about 1.4 GB) from <https://github.com/HaujetZhao/CapsWriter-Offline/releases/tag/models>
+```powershell
+$runtime = "$base\dictation\internal\runtime"
+$download = "$env:TEMP\utter-setup"
+New-Item -ItemType Directory -Force $download, $runtime | Out-Null
+curl.exe -L --fail -o "$download\server.zip" https://github.com/HaujetZhao/CapsWriter-Offline/releases/download/v2.6/CapsWriter-Offline-20260914.zip
+curl.exe -L --fail -o "$download\model.zip" https://github.com/HaujetZhao/CapsWriter-Offline/releases/download/models/Qwen3-ASR-1.7B-q4_k.zip
+Expand-Archive "$download\server.zip" $download -Force
+Copy-Item "$download\CapsWriter-Offline\*" $runtime -Recurse -Force
+Expand-Archive "$download\model.zip" "$runtime\models\Qwen3-ASR" -Force
+# Serve on this PC only, with the Qwen3-ASR model
+$cfg = "$runtime\config_server.py"
+(Get-Content $cfg -Raw -Encoding utf8) -replace "(?m)^(\s*addr\s*=\s*)'[^']*'", "`$1'127.0.0.1'" -replace "(?m)^(\s*model_type\s*=\s*)'[^']*'", "`$1'qwen_asr'" | Set-Content $cfg -Encoding utf8
+Remove-Item $download -Recurse -Force
+```
 
-Unpack them so these files exist (move contents up a level if a zip has its own top folder):
+Then check that these files exist:
 
 ```
 dictation\internal\runtime\start_server.exe
@@ -50,7 +62,7 @@ dictation\internal\runtime\models\Qwen3-ASR\qwen3_asr_encoder_frontend.onnx
 dictation\internal\runtime\models\Qwen3-ASR\qwen3_asr_encoder_backend.onnx
 ```
 
-In `dictation\internal\runtime\config_server.py`, make sure `model_type = 'qwen_asr'` and `addr = '127.0.0.1'`.
+and that `dictation\internal\runtime\config_server.py` has `model_type = 'qwen_asr'` and `addr = '127.0.0.1'`.
 
 ## 4. Shortcuts
 

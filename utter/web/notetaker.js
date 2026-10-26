@@ -5,8 +5,8 @@
 state.nt = {
   notes: [], live: null, prefs: {}, me: 'Me', codex: false,
   today: null,              // null until the calendar has answered once
-  tab: 'notes', query: '', searchOpen: false,
-  selected: null, note: null, contacts: [], view: 'summary', open: false,
+  tab: 'notes', query: '',
+  selected: null, note: null, contacts: [], view: 'summary',
 };
 
 const SUMMARIZERS = { local: 'Local AI', codex: 'Codex (gpt-6-luna)' };
@@ -57,6 +57,8 @@ async function loadNotetaker() {
   if (data.error) return toast(data.error);
   Object.assign(state.nt, { notes: data.notes, live: data.live, prefs: data.prefs, me: data.me, codex: data.codex });
   if (contacts) state.nt.contacts = contacts.contacts || [];
+  // The right column always shows a note: the newest one until you pick another.
+  if (state.nt.selected == null) state.nt.selected = data.notes[0]?.id ?? null;
   await loadNote();
 }
 
@@ -65,36 +67,41 @@ async function loadNote() {
   if (id == null) { state.nt.note = null; return; }
   const note = await call('get_note', id);
   state.nt.note = note.error ? null : note;
-  if (note.error) { state.nt.selected = null; state.nt.open = false; }
+  if (note.error) state.nt.selected = null;
 }
 
+// Two columns: today's meetings and your notes on the left, the open note on the right.
 async function renderNotetaker() {
   await loadNotetaker();
   $('#page').classList.add('wide');
   $('#page').innerHTML = `
+    <div class="page-head nt-head">
+      <div>
+        <h1 class="page-title">Notetaker</h1>
+        <p class="page-sub">Notes from your calls, written on this PC.</p>
+      </div>
+      <div class="nt-head-actions">
+        <button class="icon-btn" data-settings="notetaker" title="Notetaker settings">${icon('gear')}</button>
+        <span id="nt-start-slot">${startButton()}</span>
+      </div>
+    </div>
+    <div id="nt-live">${liveView()}</div>
     <div class="nt">
       <div class="nt-main">
-        <div class="page-head">
-          <h1 class="page-title">Notetaker</h1>
-          <div class="nt-head-actions">
-            <button class="icon-btn" data-settings="notetaker" title="Notetaker settings">${icon('gear')}</button>
-            <span id="nt-start-slot">${startButton()}</span>
-          </div>
-        </div>
-        <div id="nt-live">${liveView()}</div>
+        <h2 class="list-title">Today</h2>
         <section class="nt-today" id="nt-today">${todayView()}</section>
-        <div class="toolbar nt-toolbar">
-          <div class="tabs">
-            <button class="tab ${state.nt.tab === 'notes' ? 'active' : ''}" data-nt-tab="notes">Past notes</button>
-            <button class="tab ${state.nt.tab === 'contacts' ? 'active' : ''}" data-nt-tab="contacts">Contacts</button>
+        <div class="nt-list-head">
+          <div class="text-tabs">
+            <button class="${state.nt.tab === 'notes' ? 'active' : ''}" data-nt-tab="notes">Notes</button>
+            <button class="${state.nt.tab === 'contacts' ? 'active' : ''}" data-nt-tab="contacts">People</button>
           </div>
           ${state.nt.tab === 'notes'
-            ? `<label class="search nt-search">${icon('search')}<input id="nt-search" placeholder="Search notes" value="${esc(state.nt.query)}"></label>`
-            : `<button class="btn" data-contact-new>${icon('plus')}Add contact</button>`}
+            ? `<label class="search nt-search">${icon('search')}<input id="nt-search" placeholder="Search" value="${esc(state.nt.query)}"></label>`
+            : '<button class="link" data-contact-new>Add person</button>'}
         </div>
         <div id="nt-list">${state.nt.tab === 'notes' ? notesList() : contactsList()}</div>
       </div>
-      <aside class="nt-detail" id="nt-detail">${detailView()}</aside>
+      <article class="nt-detail" id="nt-detail">${detailView()}</article>
     </div>`;
   const search = $('#nt-search');
   if (search) {
@@ -109,7 +116,6 @@ async function renderNotetaker() {
       }, 200);
     };
   }
-  applyReading();
   setNavRecording();
 }
 
@@ -119,7 +125,6 @@ function refreshNotetakerParts() {
   $('#nt-live').innerHTML = liveView();
   $('#nt-list').innerHTML = state.nt.tab === 'notes' ? notesList() : contactsList();
   $('#nt-detail').innerHTML = detailView();
-  applyReading();
   setNavRecording();
 }
 
@@ -132,8 +137,8 @@ function setNavRecording() {
 function startButton() {
   const live = state.nt.live;
   if (live?.stopping) return `<button class="btn" disabled><span class="chip-spinner dark"></span>Finishing…</button>`;
-  if (live) return `<button class="btn nt-stop" data-nt="stop"><span class="dot rec"></span>Stop Notetaker</button>`;
-  return `<button class="btn nt-start" data-nt="start">${icon('record')}Start Notetaker</button>`;
+  if (live) return `<button class="btn" data-nt="stop"><span class="dot rec"></span>Stop notes</button>`;
+  return '<button class="btn primary" data-nt="start">Start notes</button>';
 }
 
 function meter(level) {
@@ -164,115 +169,83 @@ function liveView() {
     </section>`;
 }
 
-// Today's meetings from Google Calendar (Settings > Connectors). The current or next one gets the big card.
+// Today's meetings from Google Calendar (Settings > Connectors), one row each. The next one can be joined from its row.
 function whenLabel(m) {
   const now = Date.now();
   const start = new Date(m.start).getTime();
   if (now >= new Date(m.end).getTime()) return { text: 'Ended', past: true };
   if (now >= start) return { text: 'Now', now: true };
   const minutes = Math.round((start - now) / 60000);
-  return { text: minutes < 60 ? `In ${Math.max(1, minutes)} min` : `At ${timeOf(start / 1000)}` };
+  return { text: minutes < 60 ? `in ${Math.max(1, minutes)} min` : 'Later' };
 }
 
 function todayView() {
-  if (!state.nt.today) return '<div class="eyebrow">Today</div><div class="nt-today-done">Checking your calendar…</div>';
+  if (!state.nt.today) return '<div class="empty">Checking your calendar…</div>';
   const today = state.nt.today;
   const meetings = today.meetings || [];
   if (!today.connected) {
-    return `<div class="eyebrow">Today</div><div class="nt-today-empty">${icon('calendar')}<div>No meetings found</div>
-      <button class="btn primary" data-settings="connectors">Connect calendar</button></div>`;
+    return '<div class="empty">Connect your calendar to see today\'s meetings here. <button class="link" data-settings="connectors">Connect calendar</button></div>';
   }
+  if (!meetings.length) return `${today.error ? `<div class="nt-banner warn">${esc(today.error)}</div>` : ''}<div class="empty">No meetings today.</div>`;
   const busy = state.nt.live ? 'disabled' : '';
   const nextIndex = meetings.findIndex((m) => !whenLabel(m).past);
-  const next = meetings[nextIndex];
-  let html = '<div class="eyebrow">Today</div>';
-  if (today.error) html += `<div class="nt-banner warn">${esc(today.error)}</div>`;
-  if (next) {
-    const when = whenLabel(next);
-    const people = next.attendees?.length ? ` · ${plural(next.attendees.length, 'person', 'people')}` : '';
-    html += `
-      <div class="nt-next">
-        <span class="nt-next-icon">${icon('video')}</span>
-        <div class="nt-next-main">
-          <div class="nt-next-title">${esc(next.title)}</div>
-          <div class="nt-next-sub"><span class="dot ${when.now ? 'rec' : 'on'}"></span>${esc(when.text)} · ${timeOf(new Date(next.start).getTime() / 1000)}${esc(people)}</div>
-        </div>
-        <button class="nt-join" data-nt-join="${nextIndex}" ${busy}>
-          <span class="nt-join-logo">${icon('record')}</span>
-          <span><strong>${next.join_url ? 'Join meeting' : 'Start Notetaker'}</strong><span>${next.join_url ? '&amp; start notetaker' : 'for this meeting'}</span></span>
-        </button>
-      </div>`;
-  } else if (!meetings.length) {
-    html += `<div class="nt-today-empty">${icon('calendar')}<div>No meetings today</div></div>`;
-  } else {
-    html += '<div class="nt-today-done">No more meetings today.</div>';
-  }
-  html += meetings.map((m, i) => {
-    if (i === nextIndex) return '';
+  return (today.error ? `<div class="nt-banner warn">${esc(today.error)}</div>` : '') + meetings.map((m, i) => {
     const when = whenLabel(m);
+    const action = when.past ? '' : `<button class="link" data-nt-join="${i}" ${busy} title="${m.join_url ? 'Open the call and start notes' : 'Start notes for this meeting'}">${m.join_url ? 'Join' : 'Start'}</button>`;
     return `
-      <div class="nt-meeting ${when.past ? 'past' : ''}">
-        <span class="nt-meeting-time">${timeOf(new Date(m.start).getTime() / 1000)}</span>
-        <div class="nt-row-main"><div class="nt-row-title">${esc(m.title)}</div></div>
-        ${when.past ? '<span class="nt-row-sub">Ended</span>' : `<button class="btn small" data-nt-join="${i}" ${busy}>${m.join_url ? 'Join and start' : 'Start'}</button>`}
+      <div class="nt-item ${i === nextIndex ? 'next' : ''} ${when.past ? 'past' : ''}">
+        <span class="nt-item-title"><span class="nt-time">${timeOf(new Date(m.start).getTime() / 1000)}</span>${esc(m.title)}</span>
+        <span class="nt-item-side">${esc(when.text)}${action}</span>
       </div>`;
   }).join('');
-  return html;
 }
 
 // ---------- lists ----------
+function noteWhen(n) {
+  const day = dayOf(n.started_at);
+  return day === 'Today' ? `Today, ${timeOf(n.started_at)}` : day;
+}
+
 function notesList() {
   const notes = state.nt.notes;
   if (!notes.length) {
-    return `<div class="empty nt-empty">${state.nt.query ? 'No notes match.' : 'No meetings yet. Press Start Notetaker when a call begins: Utter records your microphone and the call audio, then writes the notes.'}</div>`;
+    return `<div class="empty">${state.nt.query ? 'No notes match.' : 'No notes yet. Press Start notes when a call begins: Utter records your microphone and the call audio, then writes the notes.'}</div>`;
   }
-  let html = '';
-  let day = '';
-  for (const n of notes) {
-    const label = dayOf(n.started_at);
-    if (label !== day) { day = label; html += `<div class="nt-day">${esc(label)}</div>`; }
-    const badge = { recording: '<span class="chip warn"><span class="dot rec"></span>Recording</span>', summarizing: '<span class="chip off">Summarizing…</span>',
-                    failed: '<span class="chip warn">No summary</span>', empty: '<span class="chip off">Nothing heard</span>' }[n.status] || '';
-    html += `
-      <div class="nt-row ${state.nt.selected === n.id ? 'active' : ''}" data-note="${n.id}">
-        <span class="nt-row-icon">${icon('doc')}</span>
-        <div class="nt-row-main"><div class="nt-row-title">${esc(n.title)}</div><div class="nt-row-sub">${timeOf(n.started_at)}${n.ended_at ? ` · ${length(n.ended_at - n.started_at)}` : ''}</div></div>
-        ${badge}
-      </div>`;
-  }
-  return html;
+  return notes.map((n) => {
+    const status = { recording: '<span class="dot rec"></span>Recording', summarizing: 'Writing…', failed: 'No summary', empty: 'Nothing heard' }[n.status];
+    return `
+      <button class="nt-item ${state.nt.selected === n.id ? 'active' : ''}" data-note="${n.id}">
+        <span class="nt-item-title">${esc(n.title)}</span>
+        <span class="nt-item-side">${status || esc(noteWhen(n))}</span>
+      </button>`;
+  }).join('');
 }
 
 function contactsList() {
   const contacts = state.nt.contacts;
-  if (!contacts.length) return '<div class="empty nt-empty">No contacts yet. Click a name in a meeting summary to save that person, or add one here.</div>';
+  if (!contacts.length) return '<div class="empty">No people yet. Click a name in a summary to save that person, or add one here.</div>';
   return contacts.map((c) => `
-    <div class="nt-row" data-contact="${c.id}">
-      <span class="avatar">${esc((c.name || '?').trim()[0].toUpperCase())}</span>
-      <div class="nt-row-main"><div class="nt-row-title">${esc(c.name)}</div><div class="nt-row-sub">${esc([c.company, c.email].filter(Boolean).join(' · ') || 'No details yet')}</div></div>
-      <span class="nt-row-sub">${c.meetings ? `${plural(c.meetings, 'meeting')} · last ${esc(dayOf(c.last_met))}` : 'No meetings linked'}</span>
-    </div>`).join('');
+    <button class="nt-item" data-contact="${c.id}">
+      <span class="nt-item-title">${esc(c.name)}${c.company ? ` <span class="faint">${esc(c.company)}</span>` : ''}</span>
+      <span class="nt-item-side">${c.meetings ? `${plural(c.meetings, 'meeting')} · ${esc(dayOf(c.last_met))}` : 'No meetings'}</span>
+    </button>`).join('');
 }
 
 // ---------- note detail ----------
 function detailView() {
   const note = state.nt.note;
   const live = state.nt.live;
-  if (!note) return '<div class="nt-detail-empty">Select a meeting to see its notes.</div>';
+  if (!note) return '<div class="empty">Your notes appear here after your first call.</div>';
   const isLive = live && live.note_id === note.id;
   const lines = isLive ? live.lines : note.lines;
-  const when = `${new Date(note.started_at * 1000).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })} · ${timeOf(note.started_at)}`;
+  const when = `${new Date(note.started_at * 1000).toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}, ${timeOf(note.started_at)}`;
   const s = note.summary;
-  // An open meeting fills the page, on its summary; the bar on top switches to the transcript.
+  // A note opens on its summary; the tabs under the title switch to the transcript.
   const view = isLive ? 'transcript' : state.nt.view;
-  const tabs = `
-    <div class="nt-viewbar">
-      <button class="icon-btn" data-nt="back" title="Back to your meetings (Esc)">${icon('left')}</button>
-      ${isLive ? '<span class="chip warn"><span class="dot rec"></span>Recording</span>' : `
-      <div class="segmented nt-switch">
-        <button class="${view === 'summary' ? 'active' : ''}" data-nt-view="summary">Summary</button>
-        <button class="${view === 'transcript' ? 'active' : ''}" data-nt-view="transcript">Transcript <span class="faint">${lines.length}</span></button>
-      </div>`}
+  const tabs = isLive ? '' : `
+    <div class="text-tabs nt-view-tabs">
+      <button class="${view === 'summary' ? 'active' : ''}" data-nt-view="summary">Summary</button>
+      <button class="${view === 'transcript' ? 'active' : ''}" data-nt-view="transcript">Transcript</button>
     </div>`;
   let body = '';
   if (isLive) {
@@ -293,19 +266,19 @@ function detailView() {
   if (s) {
     body += `
       ${s.warning ? `<div class="nt-banner warn">${esc(s.warning)}</div>` : ''}
-      <div class="nt-section"><div class="eyebrow">Overview</div><p class="nt-overview">${withMentions(s.overview)}</p></div>
-      ${s.key_points?.length ? `<div class="nt-section"><div class="eyebrow">Key points</div><ul>${s.key_points.map((p) => `<li>${withMentions(p)}</li>`).join('')}</ul></div>` : ''}
-      ${s.action_items?.length ? `<div class="nt-section"><div class="eyebrow">Action items</div><ul class="nt-actions">${s.action_items.map((a) => `<li>${a.owner ? `<strong>${withMentions(a.owner)}</strong> ` : ''}${withMentions(a.task)}</li>`).join('')}</ul></div>` : ''}`;
+      <p class="nt-overview">${withMentions(s.overview)}</p>
+      ${s.key_points?.length ? `<h3>Key points</h3><ul>${s.key_points.map((p) => `<li>${withMentions(p)}</li>`).join('')}</ul>` : ''}
+      ${s.action_items?.length ? `<h3>Next steps</h3><ul>${s.action_items.map((a) => `<li>${withMentions(a.task)}${a.owner ? ` <span class="faint">${withMentions(a.owner)}</span>` : ''}</li>`).join('')}</ul>` : ''}`;
   }
   const transcript = lines.length
-    ? `<div class="nt-transcript full">${lines.map((l) => `
-        <div class="nt-line ${l.speaker}"><span class="nt-line-meta">${esc(speakerName(l.speaker))} · ${clock(l.at)}</span><span class="nt-line-text">${esc(l.text)}</span></div>`).join('')}</div>`
-    : `<div class="nt-detail-empty">${isLive ? 'What people say shows up here a few seconds after they pause.' : 'Nothing was transcribed.'}</div>`;
+    ? `<div class="nt-transcript">${lines.map((l) => `
+        <div class="nt-line ${l.speaker}"><span class="nt-line-meta">${esc(speakerName(l.speaker))}<span>${clock(l.at)}</span></span><span class="nt-line-text">${esc(l.text)}</span></div>`).join('')}</div>`
+    : `<div class="empty">${isLive ? 'What people say shows up here a few seconds after they pause.' : 'Nothing was transcribed.'}</div>`;
   if (view === 'transcript') {
     // Keep only the status line from the summary side (recording, writing, failed) above the words.
     body = (isLive || note.status === 'summarizing' ? body : '') + transcript;
   } else if (!s && !body) {
-    body = '<div class="nt-detail-empty">No summary yet.</div>';
+    body = '<div class="empty">No summary yet.</div>';
   }
   const footer = isLive ? '' : `
     <div class="nt-detail-foot">
@@ -316,36 +289,21 @@ function detailView() {
       <button class="icon-btn" data-nt="delete" title="Delete this meeting">${icon('trash')}</button>
     </div>`;
   return `
-    ${tabs}
     <div class="nt-detail-head">
       <h2 class="nt-title">${esc(note.title)}</h2>
-      ${isLive ? '' : `<button class="icon-btn" data-nt="rename" title="Rename">${icon('pencil')}</button>`}
+      ${isLive ? '<span class="nt-rec"><span class="dot rec"></span>Recording</span>' : `<button class="icon-btn" data-nt="rename" title="Rename">${icon('pencil')}</button>`}
     </div>
     <div class="nt-when">${esc(when)}${note.ended_at ? ` · ${length(note.ended_at - note.started_at)}` : ''}</div>
+    ${tabs}
     <div class="nt-detail-body">${body}</div>
     ${footer}`;
-}
-
-// The page shows either the list of meetings or one open meeting, never both.
-function applyReading() {
-  const page = $('.nt');
-  if (page) page.classList.toggle('reading', state.nt.open && !!state.nt.note);
 }
 
 function showView(view) {
   state.nt.view = view;
   closePopover();
   $('#nt-detail').innerHTML = detailView();
-  applyReading();
-  $('#panel').scrollTop = 0;
-}
-
-function closeNote() {
-  state.nt.open = false;
-  closePopover();
-  applyReading();
-  $('#nt-list').innerHTML = state.nt.tab === 'notes' ? notesList() : contactsList();
-  $('#panel').scrollTop = 0;
+  $('#nt-detail').scrollTop = 0;
 }
 
 function noteAsText(note) {
@@ -355,7 +313,7 @@ function noteAsText(note) {
   if (s) {
     parts.push(plain(s.overview), '');
     if (s.key_points?.length) parts.push('Key points', ...s.key_points.map((p) => `- ${plain(p)}`), '');
-    if (s.action_items?.length) parts.push('Action items', ...s.action_items.map((a) => `- ${a.owner ? plain(a.owner) + ': ' : ''}${plain(a.task)}`), '');
+    if (s.action_items?.length) parts.push('Next steps', ...s.action_items.map((a) => `- ${a.owner ? plain(a.owner) + ': ' : ''}${plain(a.task)}`), '');
   }
   parts.push('Transcript', ...note.lines.map((l) => `[${clock(l.at)}] ${speakerName(l.speaker)}: ${l.text}`));
   return parts.join('\n');
@@ -383,8 +341,7 @@ async function stopNotetaker() {
 
 async function selectNote(id) {
   state.nt.selected = id;
-  state.nt.view = 'summary';          // a meeting always opens on its summary, filling the page
-  state.nt.open = true;
+  state.nt.view = 'summary';          // a note always opens on its summary
   closePopover();
   await loadNote();
   refreshNotetakerParts();
@@ -429,7 +386,6 @@ function deleteNote() {
     closeModal(false);
     if (result.error) return toast(result.error);
     state.nt.selected = null;
-    state.nt.open = false;
     toast('Meeting deleted.');
     await renderNotetaker();
   };
@@ -608,11 +564,11 @@ async function notetakerPoll() {
     $('#nt-live').innerHTML = liveView();
     $('#nt-start-slot').innerHTML = startButton();
     if (live && state.nt.note?.id === live.note_id) {
-      // Follow new lines unless you scrolled up to read (the open meeting scrolls with the page).
-      const panel = $('#panel');
-      const stick = !state.nt.open || panel.scrollHeight - panel.scrollTop - panel.clientHeight < 40;
-      $('#nt-detail').innerHTML = detailView();
-      if (stick && state.nt.open) panel.scrollTop = panel.scrollHeight;
+      // Follow new lines unless you scrolled up in the note column to read.
+      const detail = $('#nt-detail');
+      const stick = detail.scrollHeight - detail.scrollTop - detail.clientHeight < 40;
+      detail.innerHTML = detailView();
+      if (stick) detail.scrollTop = detail.scrollHeight;
     }
   }
   setNavRecording();
@@ -622,7 +578,7 @@ async function notetakerPoll() {
 document.addEventListener('click', async (ev) => {
   const pop = $('#popover');
   if (pop && !pop.hidden && !pop.contains(ev.target) && !ev.target.closest('[data-mention]')) closePopover();
-  const t = ev.target.closest('button, .nt-row');
+  const t = ev.target.closest('button');
   if (!t) return;
   if (t.dataset.page) return showPage(t.dataset.page);
   if (t.dataset.mention) return openMention(t);
@@ -635,7 +591,6 @@ document.addEventListener('click', async (ev) => {
     state.nt.tab = 'notes';
     state.nt.selected = +t.dataset.openNote;
     state.nt.view = 'summary';
-    state.nt.open = true;
     return renderNotetaker();
   }
   if (t.dataset.ntTab) {
@@ -650,7 +605,6 @@ document.addEventListener('click', async (ev) => {
   if (t.dataset.summarize !== undefined) return summarizeAgain(t.dataset.summarize);
   if (t.dataset.ntView) return showView(t.dataset.ntView);
   switch (t.dataset.nt) {
-    case 'back': return closeNote();
     case 'start': return startNotetaker();
     case 'stop': return stopNotetaker();
     case 'rename': return renameNote();
@@ -664,7 +618,5 @@ document.addEventListener('click', async (ev) => {
 });
 
 document.addEventListener('keydown', (ev) => {
-  if (ev.key !== 'Escape') return;
-  if (!$('#popover').hidden) closePopover();
-  else if (state.page === 'notetaker' && state.nt.open && !$('#backdrop').classList.contains('open')) closeNote();
+  if (ev.key === 'Escape' && !$('#popover').hidden) closePopover();
 });

@@ -66,10 +66,7 @@ const state = {
   home: null,
   insights: null,
   dictionary: null,
-  dictTab: 'all',
   dictQuery: '',
-  dictOpen: true,           // the Dictionary page shows its word list straight away
-  heatOffset: 0,
   settingsSection: 'general',
 };
 
@@ -384,179 +381,65 @@ function drawWave(dt) {
 }
 
 // ---------- insights ----------
-function gauge(wpm, typingWpm) {
-  const f = Math.max(0, Math.min((wpm || 0) / 200, 1));
-  const angle = Math.PI * (1 - f);
-  const x = (90 + 70 * Math.cos(angle)).toFixed(1);
-  const y = (90 - 70 * Math.sin(angle)).toFixed(1);
-  const times = wpm && typingWpm ? (wpm / typingWpm).toFixed(1) : null;
-  return `
-    <svg class="gauge" width="180" height="104" viewBox="0 0 180 104">
-      <path d="M20 90 A70 70 0 0 1 160 90" fill="none" stroke="var(--line)" stroke-width="16" stroke-linecap="round"/>
-      ${f > 0 ? `<path d="M20 90 A70 70 0 0 1 ${x} ${y}" fill="none" stroke="var(--accent)" stroke-width="16" stroke-linecap="round"/>` : ''}
-      <text x="90" y="72" text-anchor="middle" font-size="13" fill="var(--muted)">${times ? 'vs typing' : 'no data yet'}</text>
-      <text x="90" y="94" text-anchor="middle" font-size="22" fill="var(--text)">${times ? times + '×' : '—'}</text>
-    </svg>`;
+// A short list of what matters this month, one bar chart of the month, and the apps you dictate into.
+function duration(minutes) {
+  const m = Math.round(Math.abs(minutes));
+  const text = m >= 60 ? `${Math.floor(m / 60)} h${m % 60 ? ` ${m % 60} min` : ''}` : `${m} min`;
+  return minutes < 0 ? `−${text}` : text;
 }
 
-function signedDuration(minutes) {
-  const size = Math.abs(minutes);
-  const text = size >= 60 ? `${(size / 60).toFixed(1)} h` : `${size < 10 ? size.toFixed(1) : Math.round(size)} min`;
-  return `${minutes < 0 ? '−' : '+'}${text}`;
-}
+const localDay = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
-function learnRate(bucket) {
-  return bucket?.seen ? `${bucket.percent}% of ${plural(bucket.seen, 'time')}` : '—';
-}
-
-// Last 14 days of new mishearings per 1,000 words, tallest bar = worst day.
-function sparkline(days) {
-  const recent = days.slice(-14);
-  if (recent.length < 2) return '';
-  const max = Math.max(...recent.map((day) => day.new_per_1k), 1);
-  return `<div class="spark">${recent.map((day) => `<div style="height:${Math.max(day.new_per_1k / max * 100, 6)}%" title="${esc(day.day)}: ${day.new_per_1k} per 1,000 words (${plural(day.new_mishearings, 'new word')})"></div>`).join('')}</div>`;
-}
-
-const CATEGORY_ICONS ={ other: 'infinity', ai: 'bot', documents: 'doc', code: 'code', messages: 'chat', email: 'mail' };
-
-function heatmap(calendar, offset) {
-  const weeks = 17;
+// Words per day from the 1st of this month to today.
+function monthBars(calendar) {
   const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const end = new Date(today);
-  end.setDate(end.getDate() - offset * weeks * 7 + (6 - end.getDay()));
-  const start = new Date(end);
-  start.setDate(start.getDate() - weeks * 7 + 1);
-  const values = Object.values(calendar).filter((v) => v > 0).sort((a, b) => a - b);
-  const q = (p) => values[Math.min(values.length - 1, Math.floor(p * values.length))] || 0;
-  const level = (v) => (!v ? 0 : values.length < 4 ? Math.max(1, Math.ceil((v / values[values.length - 1]) * 4)) : v <= q(0.25) ? 1 : v <= q(0.5) ? 2 : v <= q(0.75) ? 3 : 4);
-  const iso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-
-  let months = '';
-  let lastMonth = -1;
-  for (let w = 0; w < weeks; w++) {
-    const d = new Date(start);
-    d.setDate(d.getDate() + w * 7);
-    // Label the first column of each month (its week starts within the month's first 7 days).
-    const label = d.getMonth() !== lastMonth && d.getDate() <= 7 ? d.toLocaleDateString(undefined, { month: 'short' }) : '';
-    if (label) lastMonth = d.getMonth();
-    months += `<span>${label}</span>`;
+  const days = [];
+  for (let day = 1; day <= today.getDate(); day++) {
+    const d = new Date(today.getFullYear(), today.getMonth(), day);
+    days.push({ d, words: calendar[localDay(d)] || 0 });
   }
-  const cols = `34px repeat(${weeks}, 1fr)`;
-  let rows = '';
-  ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].forEach((name, day) => {
-    let cells = '';
-    for (let w = 0; w < weeks; w++) {
-      const d = new Date(start);
-      d.setDate(d.getDate() + w * 7 + day);
-      const words = calendar[iso(d)] || 0;
-      const cls = d > today ? 'future' : `l${level(words)}${d.getTime() === today.getTime() ? ' today' : ''}`;
-      cells += `<div class="cell ${cls}" title="${d.toDateString()}: ${plural(words, 'word')}"></div>`;
-    }
-    rows += `<div class="heat-row" style="grid-template-columns:${cols}"><span>${name}</span>${cells}</div>`;
-  });
-  return `<div class="heat"><div class="heat-months" style="grid-template-columns:${cols}"><span></span>${months}</div>${rows}</div>`;
+  const max = Math.max(1, ...days.map((x) => x.words));
+  return `
+    <div class="month-bars">${days.map((x, i) => `<i class="${i === days.length - 1 ? 'today' : ''}" style="height:${Math.max(x.words / max * 100, 3)}%" title="${esc(x.d.toDateString())}: ${plural(x.words, 'word')}"></i>`).join('')}</div>
+    <div class="month-axis"><span>1 ${esc(today.toLocaleDateString(undefined, { month: 'short' }))}</span><span>Today</span></div>`;
+}
+
+function statRow(label, value, note = '') {
+  return `<div class="stat-row"><span class="stat-label">${label}</span><span class="stat-value">${value}${note ? `<small>${note}</small>` : ''}</span></div>`;
 }
 
 function insightsView() {
   const d = state.insights || {};
-  const head = (sub) => `<div class="section-head"><h2 class="section-title">Insights</h2><span class="since">${esc(sub)}</span></div>`;
+  const month = new Date().toLocaleDateString(undefined, { month: 'long' });
+  const head = (sub) => `<h1 class="page-title">Insights</h1><p class="page-sub">${esc(sub)}</p>`;
   if (d.error && d.total_words === undefined) return head('') + `<div class="error-box">${esc(d.error)}</div>`;
+  if (!d.dictations) return head(`${month} so far`) + '<div class="empty">Your numbers appear here after your first dictation.</div>';
   const fixes = d.fixes || {};
-  const cats = d.categories || [];
-  const maxCat = Math.max(1, ...cats.map((c) => c.percent));
-  const change = d.month_change_percent;
-  const pill = change == null
-    ? (d.words_this_month ? 'New this month' : 'No words this month')
-    : `${change >= 0 ? '↗' : '↘'} ${Math.abs(change)}% this month`;
-  const maxApp = Math.max(1, ...(d.apps || []).map((a) => a.words));
   const typingWpm = d.time_saved?.typing_wpm || 110;
-  const saved = d.dictations ? d.time_saved?.minutes : null;
-  const cleanup = d.cleanup || [];
-  const spoken = cleanup.reduce((sum, a) => sum + a.spoken_words, 0);
-  const cleanupPercent = spoken ? Math.round(cleanup.reduce((sum, a) => sum + a.changed_words, 0) / spoken * 100) : null;
-  const learning = d.learning || {};
-  const curve = (learning.days || []).filter((day) => day.new_per_1k != null);
-  const latest = curve[curve.length - 1];
-  const since = d.first_day
-    ? `Since ${new Date(d.first_day + 'T00:00').toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' })} · ${plural(d.dictations, 'dictation')} · ${d.speaking_minutes} min of speech`
-    : 'Your numbers appear here after the first dictation.';
+  const saved = d.time_saved?.minutes;
+  const change = d.month_change_percent;
+  const since = d.first_day ? new Date(d.first_day + 'T00:00').toLocaleDateString(undefined, { day: 'numeric', month: 'short' }) : '';
+  const corrected = (fixes.dictionary || 0) + (fixes.rules || 0) + (fixes.ai_words || 0);
+  const after = d.learning?.after_learned;
+  const apps = d.apps || [];
+  const appWords = apps.reduce((sum, a) => sum + a.words, 0);
   return `
-    ${head(since)}
+    ${head(`${month} so far`)}
     ${d.error ? `<div class="error-box">${esc(d.error)}</div>` : ''}
-    <div class="grid-3">
-      <section class="card">
-        <div class="big">${d.wpm ?? '—'}</div>
-        <div class="metric-label">Words per minute <span class="info" title="Words in what you said divided by recording time, for recordings of a second or longer. Compared with your typing speed of ${typingWpm} wpm.">i</span></div>
-        ${gauge(d.wpm, typingWpm)}
-      </section>
-      <section class="card">
-        <div class="big">${(fixes.total || 0).toLocaleString()}</div>
-        <div class="metric-label">Fixes made by Utter</div>
-        <div class="divider"></div>
-        <div class="fix-row"><span><strong>${(fixes.dictionary || 0).toLocaleString()}</strong> dictionary fixes</span><span class="info" title="Sound-alike mistakes swapped for a word in your dictionary.">i</span></div>
-        <div class="fix-row"><span><strong>${(fixes.rules || 0).toLocaleString()}</strong> replacements</span><span class="info" title="Exact phrases rewritten by a replacement rule, including spoken punctuation.">i</span></div>
-        <div class="fix-row"><span><strong>${(fixes.ai_words || 0).toLocaleString()}</strong> words polished by AI</span><span class="info" title="Words AI polish removed, added or rewrote.">i</span></div>
-        <div class="fix-row"><span><strong>${(fixes.learned || 0).toLocaleString()}</strong> words learned</span><span class="info" title="Words and replacements Utter added after you corrected its output.">i</span></div>
-      </section>
-      <section class="card">
-        <div class="card-title-row"><div class="big">${(d.total_words || 0).toLocaleString()}</div><span class="pill">${esc(pill)}</span></div>
-        <div class="metric-label">Total words dictated</div>
-        <div class="divider"></div>
-        <div class="fix-row"><span class="muted">Today</span><span>${plural(d.today?.words || 0, 'word')}</span></div>
-        <div class="fix-row"><span class="muted">This month</span><span>${plural(d.words_this_month || 0, 'word')}</span></div>
-      </section>
+    <div class="stat-list">
+      ${statRow('Words dictated', (d.words_this_month || 0).toLocaleString(),
+        change == null ? 'New this month' : `<span class="${change >= 0 ? 'up' : ''}">${change >= 0 ? '↑' : '↓'} ${Math.abs(change)}%</span> on last month`)}
+      ${statRow('Speaking speed', d.wpm ? `${d.wpm} wpm` : '—', d.wpm ? `${(d.wpm / typingWpm).toFixed(1)}× your typing` : '')}
+      ${statRow('Time saved', saved == null ? '—' : duration(saved), since ? `since ${esc(since)}` : '')}
+      ${statRow('Corrected for you', corrected.toLocaleString(),
+        `${(fixes.dictionary || 0).toLocaleString()} names · ${(fixes.rules || 0).toLocaleString()} phrases · ${(fixes.ai_words || 0).toLocaleString()} polished`)}
+      ${statRow('Words learned', (fixes.learned || 0).toLocaleString(), after?.seen ? `right ${after.percent}% of the time after` : '')}
     </div>
-    <div class="grid-3">
-      <section class="card">
-        <div class="big">${saved == null ? '—' : signedDuration(saved)}</div>
-        <div class="metric-label">Time saved vs typing <span class="info" title="Time typing your dictated words at ${typingWpm} wpm would take, minus the time spent saying them. Negative when you type faster than you speak.">i</span></div>
-        <div class="divider"></div>
-        <div class="fix-row"><span class="muted">You speak</span><span>${d.wpm ? `${d.wpm} wpm` : '—'}</span></div>
-        <div class="fix-row"><span class="muted">You type</span><span>${typingWpm} wpm</span></div>
-      </section>
-      <section class="card">
-        <div class="big">${cleanupPercent == null ? '—' : `${cleanupPercent}%`}</div>
-        <div class="metric-label">Words changed by cleanup <span class="info" title="Share of the words you said that replacements, dictionary fixes and AI polish removed or rewrote before typing. Punctuation changes count.">i</span></div>
-        <div class="divider"></div>
-        ${cleanup.length ? cleanup.slice(0, 4).map((a) => `
-          <div class="fix-row"><span>${esc(a.name)}</span><span class="muted">${a.percent}% of ${plural(a.spoken_words, 'word')}</span></div>`).join('')
-          : '<div class="empty">Appears after your first dictation.</div>'}
-      </section>
-      <section class="card">
-        <div class="card-title-row"><div class="big">${latest?.new_per_1k ?? '—'}</div>${sparkline(curve)}</div>
-        <div class="metric-label">New mishearings per 1,000 words <span class="info" title="Words the AI reviewer or you had to teach Utter, counted on the day each was first misheard. Falling means Utter knows your vocabulary. Only mistakes someone noticed count.">i</span></div>
-        <div class="divider"></div>
-        <div class="fix-row"><span class="muted">Right before learning</span><span>${learnRate(learning.before_learned)}</span></div>
-        <div class="fix-row"><span class="muted">Right after learning</span><span>${learnRate(learning.after_learned)}</span></div>
-      </section>
-    </div>
-    <div class="grid-2">
-      <section class="card">
-        <div class="card-title-row"><h2 class="card-title">Desktop usage</h2><span class="eyebrow">Total apps used | ${d.total_apps || 0}</span></div>
-        ${cats.map((c, i) => `
-          <div class="usage-row">
-            ${icon(CATEGORY_ICONS[c.key] || 'infinity')}
-            <div class="bar-track"><div class="bar lvl-${Math.min(i, 2)}" style="width:${Math.max(c.percent / maxCat * 100, 0)}%">${c.percent}%</div></div>
-            <span class="usage-label">${c.count.toLocaleString()} ${esc(c.label)}</span>
-          </div>`).join('')}
-      </section>
-      <section class="card">
-        <div class="card-title-row"><h2 class="card-title">${plural(d.streak?.current || 0, 'day')} streak</h2><span class="eyebrow">Longest streak | ${plural(d.streak?.longest || 0, 'day')}</span></div>
-        <div class="heat-nav">
-          <button class="icon-btn" data-heat="-1" title="Earlier">${icon('left')}</button>
-          <button class="icon-btn" data-heat="1" title="Later" ${state.heatOffset === 0 ? 'disabled style="opacity:.3"' : ''}>${icon('right')}</button>
-        </div>
-        ${heatmap(d.calendar || {}, state.heatOffset)}
-        <div class="legend">More <div class="cell l4"></div><div class="cell l3"></div><div class="cell l2"></div><div class="cell l1"></div> Less</div>
-      </section>
-    </div>
-    <section class="card">
-      <div class="card-title-row"><h2 class="card-title">Where you dictate</h2><span class="eyebrow">Words by app</span></div>
-      ${(d.apps || []).length ? d.apps.map((a) => `
-        <div class="app-row"><span>${esc(a.name)}</span><div class="app-bar" style="width:${a.words / maxApp * 100}%"></div><span class="muted">${a.words.toLocaleString()} words</span></div>`).join('')
-        : '<div class="empty">Apps appear here once you dictate into them.</div>'}
-    </section>`;
+    <h2 class="list-title">Every day in ${esc(month)}</h2>
+    ${monthBars(d.calendar || {})}
+    <h2 class="list-title">Where you dictate</h2>
+    ${apps.length ? `<div class="stat-list">${apps.slice(0, 4).map((a) => statRow(esc(a.name), `${Math.round(a.words / appWords * 100)}%`)).join('')}</div>`
+      : '<div class="empty">Apps appear here once you dictate into them.</div>'}`;
 }
 
 // ---------- dictionary ----------
@@ -567,72 +450,42 @@ function group(entry) {
 
 function filteredEntries() {
   const entries = state.dictionary?.entries || [];
-  const tab = state.dictTab;
   const q = state.dictQuery.trim().toLowerCase();
   return entries
-    .filter((e) => tab === 'all' || (tab === 'words' && e.kind === 'word') || (tab === 'replacements' && e.kind === 'replacement') || (tab === 'learned' && e.source === 'learned'))
     .filter((e) => !q || [e.text, e.heard, e.pattern].some((v) => v && v.toLowerCase().includes(q)))
     // Newest learned first, then your words, then replacements, with pattern rules last.
     .sort((a, b) => (b.learned_at || '').localeCompare(a.learned_at || '') || group(a) - group(b) || b.fixes - a.fixes || a.text.localeCompare(b.text));
 }
 
+// One list: the word Utter writes, what it was heard as underneath, and how it got there on the right.
 function dictionaryList() {
   const list = filteredEntries();
   if (!list.length) {
-    return `<div class="empty" style="padding:24px 6px">${state.dictQuery ? 'No matches.' : state.dictTab === 'learned' ? 'Nothing learned yet. Fix a misheard name right after dictating and it will appear here.' : 'No entries yet.'}</div>`;
+    return `<div class="empty">${state.dictQuery ? 'No matches.' : 'No words yet. Add one, or fix a misheard name right after dictating.'}</div>`;
   }
   return list.map((e, i) => {
-    const uses = e.fixes ? `${plural(e.fixes, 'fix', 'fixes')}` : '';
-    const chip = e.source === 'learned' ? '<span class="chip learned">Learned</span>' : e.advanced ? '<span class="chip manual">Advanced</span>' : '';
-    let main, sub;
-    if (e.kind === 'word') {
-      main = esc(e.text);
-      sub = e.source === 'learned'
-        ? (e.learned_by === 'review' ? `Learned by AI review ${ago(e.learned_at)}` : `Learned from your correction ${ago(e.learned_at)}`)
-        : 'Word';
-    } else if (e.advanced) {
-      main = `<code>${esc(e.pattern)}</code><span class="arrow">→</span>${esc(e.text) || '<span class="faint">(removed)</span>'}`;
-      sub = 'Pattern rule. Edit it in hot-rule.txt';
-    } else {
-      main = `${esc(e.heard)}<span class="arrow">→</span>${esc(e.text) || '<span class="faint">(removed)</span>'}`;
-      sub = e.source === 'learned'
-        ? `Replacement learned${e.learned_by === 'review' ? ' by AI review' : ''} ${ago(e.learned_at)}`
-        : 'Replacement';
-    }
+    const text = esc(e.text) || '<span class="faint">(removed)</span>';
+    const sub = e.advanced ? `pattern <code>${esc(e.pattern)}</code>, edit it in hot-rule.txt`
+      : e.kind === 'replacement' ? `heard as “${esc(e.heard)}”` : '';
+    const how = e.source === 'learned'
+      ? `<span class="dot"></span>Learned ${esc(ago(e.learned_at))}${e.learned_by === 'review' ? ' by AI review' : ''}`
+      : e.fixes ? plural(e.fixes, 'fix', 'fixes') : '';
     const remove = e.advanced ? '<span></span>' : `<button class="icon-btn" data-remove="${i}" title="Remove">${icon('trash')}</button>`;
-    return `<div class="entry"><div class="entry-main"><div class="entry-text">${main}</div><div class="entry-sub">${sub}</div></div>${chip || '<span></span>'}<span class="uses">${uses}</span>${remove}</div>`;
+    return `<div class="entry"><div class="entry-text">${text}${sub ? `<small>${sub}</small>` : ''}</div><span class="entry-how">${how}</span>${remove}</div>`;
   }).join('');
 }
 
 function dictionaryView() {
   const d = state.dictionary || {};
-  const entries = d.entries || [];
-  const count = (fn) => entries.filter(fn).length;
-  const tabs = [
-    ['all', 'All', entries.length],
-    ['words', 'Words', count((e) => e.kind === 'word')],
-    ['replacements', 'Replacements', count((e) => e.kind === 'replacement')],
-    ['learned', 'Learned', count((e) => e.source === 'learned')],
-  ];
   return `
-    <div class="section-head">
-      <h2 class="section-title">Dictionary</h2>
-      <button class="chip ${d.auto_learn ? 'on' : 'off'}" data-settings="dictation" style="border:0;padding:5px 11px">Learning from your fixes: ${d.auto_learn ? 'On' : 'Off'}</button>
-      <span class="strip-spacer"></span>
-      <button class="btn primary" id="add-entry">${icon('plus')}Add new</button>
-    </div>
-    <p class="section-note">Utter swaps sound-alike mistakes for these words, so names and jargon come out right. Fix a misheard name right after dictating and Utter adds it here on its own.</p>
+    <h1 class="page-title">Dictionary</h1>
+    <p class="page-sub">Words Utter should always get right. Fix a misheard name after dictating and it is added here.<button class="link" data-settings="dictation">Learning from your fixes is ${d.auto_learn ? 'on' : 'off'}</button></p>
     ${d.error ? `<div class="error-box">${esc(d.error)}</div>` : ''}
-    <button class="dict-toggle ${state.dictOpen ? 'open' : ''}" id="dict-toggle" aria-expanded="${state.dictOpen}">
-      <span>${plural(tabs[1][2], 'word')} · ${plural(tabs[2][2], 'replacement')} · ${tabs[3][2]} learned</span>
-      <span class="dict-toggle-action">${state.dictOpen ? 'Hide' : 'Show all'}${icon('right')}</span>
-    </button>
-    ${state.dictOpen ? `
-    <div class="toolbar">
-      <div class="tabs">${tabs.map(([key, label, n]) => `<button class="tab ${state.dictTab === key ? 'active' : ''}" data-tab="${key}">${label}<span class="count">${n}</span></button>`).join('')}</div>
+    <div class="dict-tools">
       <label class="search">${icon('search')}<input id="dict-search" placeholder="Search"></label>
+      <button class="btn primary" id="add-entry">Add word</button>
     </div>
-    <div id="dict-list">${dictionaryList()}</div>` : ''}`;
+    <div class="dict-list" id="dict-list">${dictionaryList()}</div>`;
 }
 
 function bindDictionarySearch() {
@@ -1239,22 +1092,8 @@ document.addEventListener('click', (ev) => {
     state.recentOpen = !state.recentOpen;
     return renderRecent();
   }
-  if (t.dataset.tab) {
-    state.dictTab = t.dataset.tab;
-    return renderDictionary();
-  }
   if (t.dataset.remove !== undefined) return removeEntry(+t.dataset.remove);
   if (t.id === 'add-entry') return openAddModal('word');
-  if (t.id === 'dict-toggle') {
-    state.dictOpen = !state.dictOpen;
-    renderDictionary();
-    if (state.dictOpen) $('#dict-search')?.focus({ preventScroll: true });
-    return;
-  }
-  if (t.dataset.heat) {
-    state.heatOffset = Math.max(0, state.heatOffset - Number(t.dataset.heat));
-    return renderInsights();
-  }
   if (t.id === 'theme-toggle') {
     const next = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
     applyTheme(next);

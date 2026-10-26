@@ -29,6 +29,16 @@ class FindCorrectionsTests(unittest.TestCase):
         text = "ping the NASA team"
         self.assertEqual(corrections(text, text, "ping the NASA team about the launch, Alex"), [])
 
+    def test_ignores_letters_typed_onto_a_word(self):
+        text = "even if my cursor or whatever"
+        self.assertEqual(corrections(text, text, "even if my cursor or whateverIs"), [])
+
+    def test_ignores_a_half_deleted_word(self):
+        text = "deploy it on Azure tonight"
+        self.assertEqual(corrections(text, text, "deploy it on Azur tonight"), [])
+        text = "We did Something before lunch"
+        self.assertEqual(corrections(text, text, "We did Somet lunch"), [])
+
     def test_ignores_common_word_fixes(self):
         text = "I think there going to ship it"
         self.assertEqual(corrections(text, text, "I think they're going to ship it"), [])
@@ -61,6 +71,34 @@ class FindCorrectionsTests(unittest.TestCase):
         self.assertFalse(is_distinctive('there', 'over there', 5))
 
 
+class WatcherStabilityTests(unittest.TestCase):
+    """A fix is learned only when two reads in a row show it."""
+
+    def _poll_all(self, snapshots):
+        from util.client.learn.edit_watcher import EditWatcher, _Observation
+        before = "Can we ask bright loop about the order today"
+        obs = _Observation(None, before, 0, before, 'msedge.exe')
+        reader = type('Reader', (), {})()
+        watcher = EditWatcher.__new__(EditWatcher)   # no background thread
+        for snap in snapshots:
+            reader.text = lambda element, snap=snap: snap
+            watcher._poll(reader, obs)
+        return obs.corrections
+
+    def test_a_fix_seen_twice_is_learned(self):
+        fixed = "Can we ask Brightloop about the order today"
+        self.assertEqual(self._poll_all([fixed, fixed]), [('bright loop', 'Brightloop')])
+
+    def test_a_fix_seen_once_mid_edit_is_not_learned(self):
+        mid_edit = "Can we ask Brightloop about the order today"
+        moved_on = "Can we ask about the order today"
+        self.assertEqual(self._poll_all([mid_edit, moved_on]), [])
+
+    def test_a_kept_fix_survives_the_field_being_cleared(self):
+        fixed = "Can we ask Brightloop about the order today"
+        self.assertEqual(self._poll_all([fixed, fixed, '']), [('bright loop', 'Brightloop')])
+
+
 class PlanTests(unittest.TestCase):
     def test_adds_word_and_rule_when_fuzzy_match_would_miss(self):
         result = plan('bright loop', 'Brightloop', set(), lambda heard, word: False)
@@ -77,20 +115,20 @@ class LearnTests(unittest.TestCase):
         from util.client.learn.edit_watcher import learn
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            (root / 'hot.txt').write_text('Claude\n', encoding='utf-8')
+            (root / 'hot.txt').write_text('Utter\n', encoding='utf-8')
             shown = []
-            added = learn([('bright loop', 'Brightloop'), ('Claud', 'Claude')], 'chrome.exe',
+            added = learn([('bright loop', 'Brightloop'), ('Otto', 'Utter')], 'chrome.exe',
                           root=root, notify=shown.append)
             again = learn([('bright loop', 'Brightloop')], root=root)
             p = files.paths(root)
             # "bright loop" has the same letters as Brightloop, so the fuzzy matcher
-            # handles it and only the word is needed. "Claud" scores below the
+            # handles it and only the word is needed. "Otto" scores far below the
             # threshold, so the known word gets an exact replacement instead.
             self.assertEqual(files.read_words(p['learned_words']), ['Brightloop'])
-            self.assertEqual([r['heard'] for r in files.read_rules(p['learned_rules'])], ['Claud'])
+            self.assertEqual([r['heard'] for r in files.read_rules(p['learned_rules'])], ['Otto'])
             self.assertEqual(again, [])
-            self.assertEqual(shown, [['Brightloop', 'Claude']])
-            self.assertNotIn(('word', 'Claud', 'Claude'), added)
+            self.assertEqual(shown, [['Brightloop', 'Utter']])
+            self.assertNotIn(('word', 'Otto', 'Utter'), added)
             db = sqlite3.connect(root / 'transcripts' / 'transcripts.sqlite3')
             self.assertEqual(db.execute('SELECT count(*) FROM learned_words').fetchone()[0], len(added))
             db.close()

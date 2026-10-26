@@ -7,16 +7,13 @@ Provides the TextOutput class, which sends recognition results to the current wi
 
 from __future__ import annotations
 
-import asyncio
 from typing import Optional
 import re
 
 import keyboard
-import pyclip
-from pynput import keyboard as pynput_keyboard
 
 from config_client import ClientConfig as Config
-from util.client.clipboard import keep_output_clipboard, should_keep_output_clipboard
+from util.client.clipboard import keep_output_clipboard
 from . import logger
 
 
@@ -61,6 +58,8 @@ class TextOutput:
         if paste is None:
             paste = Config.paste
 
+        from util.client.output.focus import before_typing
+        before_typing()
         if paste:
             await self._paste_text(text)
         else:
@@ -74,32 +73,8 @@ class TextOutput:
             text: Text to paste
         """
         logger.debug(f"Pasting text, length: {len(text)}")
-
-        # Save the clipboard
-        try:
-            temp = pyclip.paste().decode('utf-8')
-        except Exception:
-            temp = ''
-
-        # Copy the result
-        pyclip.copy(text)
-
-        # Paste the result (simulate Ctrl+V with pynput)
-        controller = pynput_keyboard.Controller()
-        with controller.pressed(pynput_keyboard.Key.ctrl):
-            controller.tap('v')
-
-        logger.debug("Sent paste command (Ctrl+V)")
-
-        keep_output = should_keep_output_clipboard()
-
-        # Restore the clipboard; if the output fallback is on, leave the output text there instead
-        if Config.restore_clip and not keep_output:
-            await asyncio.sleep(0.1)
-            pyclip.copy(temp)
-            logger.debug("Clipboard restored")
-        elif keep_output:
-            keep_output_clipboard(text)
+        from util.client.clipboard import paste_text
+        await paste_text(text, restore_clipboard=Config.restore_clip)
 
     def _type_text(self, text: str) -> None:
         """

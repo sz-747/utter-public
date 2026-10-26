@@ -36,12 +36,14 @@ class _Observation:
         self.process = process
         self.began = time.time()
         self.corrections = []
+        self.pending = []
 
 
 def fuzzy_fixes(heard: str, word: str) -> bool:
     """Would the fuzzy hotword matcher alone turn `heard` into `word`?"""
     from util.hotword.hot_phoneme import PhonemeCorrector
-    corrector = PhonemeCorrector(threshold=Config.hot_thresh, similar_threshold=Config.hot_similar)
+    corrector = PhonemeCorrector(threshold=Config.hot_thresh, similar_threshold=Config.hot_similar,
+                                 rare_threshold=getattr(Config, 'hot_thresh_rare', None))
     corrector.update_hotwords(word)
     return corrector.correct(heard).text.strip() == word
 
@@ -132,7 +134,8 @@ class EditWatcher:
             if start >= 0:
                 logger.debug(f'Auto-learn watching {process or "field"} for edits')
                 return _Observation(element, text, start, inserted, process)
-        logger.debug('Auto-learn: dictated text not visible in the focused field')
+        # Info, not debug: this is the trace of a dictation that was typed but never landed
+        logger.info(f'Dictated text not found in the focused field of {process or "the app"} 3 s after typing')
         return None
 
     def _poll(self, reader, obs) -> bool:
@@ -144,8 +147,11 @@ class EditWatcher:
         found = find_corrections(obs.before, obs.start, obs.inserted, normalize_newlines(text))
         # Keep the last snapshot that showed a fix: a chat box that is sent and
         # cleared afterwards must not erase what the user corrected before sending.
-        if found:
+        # A fix counts only once two reads in a row show it, so a word caught
+        # mid-edit (half deleted, half typed) is never learned.
+        if found and found == obs.pending:
             obs.corrections = found
+        obs.pending = found
         return True
 
     def _finish(self, obs) -> None:

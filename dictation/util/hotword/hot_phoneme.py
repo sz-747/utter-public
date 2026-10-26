@@ -7,6 +7,7 @@ Fuzzy matching on phoneme edit distance replaces misheard words with dictionary 
 
 import logging
 import os
+import re
 import time
 import threading
 from typing import List, Tuple, Dict, Set, Optional, NamedTuple
@@ -18,6 +19,32 @@ from .rag_fast import FastRAG
 from .algo_calc import fuzzy_substring_search_constrained
 
 from . import logger
+
+
+_COMMON_EN_FILE = Path(__file__).with_name('common_en.txt')
+_common_en: Optional[frozenset] = None
+
+
+def common_english() -> frozenset:
+    """The ~28,000 most common English words (common_en.txt); empty if the file is missing."""
+    global _common_en
+    if _common_en is None:
+        try:
+            lines = _COMMON_EN_FILE.read_text(encoding='utf-8').splitlines()
+            _common_en = frozenset(line for line in lines if line and not line.startswith('#'))
+        except OSError:
+            _common_en = frozenset()
+    return _common_en
+
+
+def has_uncommon_word(span: str) -> bool:
+    """True when the heard text has an English word outside the common list ("Kodex", "Herda", "MCPP").
+
+    Such a word is rarely what was really said, so a lower score is enough to replace it; a phrase
+    made only of everyday words ("still", "Claude code", "open a") keeps the full threshold.
+    """
+    common = common_english()
+    return bool(common) and any(w.lower() not in common for w in re.findall(r'[A-Za-z]+', span))
 
 
 class MatchResult(NamedTuple):
@@ -47,9 +74,14 @@ class PhonemeCorrector:
     Spans whose similarity passes the threshold are replaced with the dictionary word.
     """
 
-    def __init__(self, threshold: float = 0.7, similar_threshold: float = None):
+    def __init__(self, threshold: float = 0.7, similar_threshold: float = None, rare_threshold: float = None):
+        """
+        rare_threshold: lower replacement threshold for heard text with an uncommon English word
+            (see has_uncommon_word); None means the same as threshold.
+        """
         self.threshold = threshold
         self.similar_threshold = similar_threshold if similar_threshold is not None else threshold - 0.2
+        self.rare_threshold = rare_threshold if rare_threshold is not None else threshold
 
         self.max_diff = 2             # largest phoneme difference allowed in sliding-window matching
         self.top_k_candidates = 100   # candidates kept by the coarse filter
@@ -78,6 +110,12 @@ class PhonemeCorrector:
         logger.debug(f"PhonemeCorrector loaded {len(new_hotwords)} dictionary words in {time.time() - start_time:.3f}s")
         return len(new_hotwords)
 
+    def threshold_for(self, heard: str) -> float:
+        """The score heard text needs before it is replaced."""
+        if self.rare_threshold < self.threshold and has_uncommon_word(heard):
+            return self.rare_threshold
+        return self.threshold
+
     def _find_matches(self, text: str, fast_results: List, input_processed: List[Tuple]) -> Tuple[List[MatchResult], List[Tuple[str, str, float]]]:
         """Fine matching: boundary-constrained fuzzy search."""
         matches = []
@@ -89,7 +127,7 @@ class PhonemeCorrector:
 
             # Search the whole input for spans on word boundaries. The looser threshold
             # makes sure borderline matches still reach the similar list.
-            search_threshold = min(self.threshold, self.similar_threshold) - 0.1
+            search_threshold = min(self.threshold, self.rare_threshold, self.similar_threshold) - 0.1
 
             found_segments = fuzzy_substring_search_constrained(hw_compare, input_processed, threshold=search_threshold)
 
@@ -101,7 +139,7 @@ class PhonemeCorrector:
                 res = MatchResult(char_start, char_end, score, hw)
                 origin_val = text[char_start:char_end]
 
-                if score >= self.threshold:
+                if score >= self.threshold_for(origin_val):
                     matches.append(res)
 
                 # Everything above the similarity threshold is a suggestion
@@ -136,7 +174,7 @@ class PhonemeCorrector:
                 all_matched_info.append((m.hotword, m.score))
                 seen_hw_score.add((m.hotword, m.score))
 
-            if m.score < self.threshold: continue
+            if m.score < self.threshold_for(text[m.start:m.end]): continue
 
             is_overlap = False
             for r_start, r_end in occupied_ranges:

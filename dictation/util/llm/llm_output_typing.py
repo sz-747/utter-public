@@ -12,6 +12,7 @@ from config_client import ClientConfig as Config
 from util.tools.asyncio_to_thread import to_thread
 from util.client.output.text_output import TextOutput
 from util.client.clipboard import paste_text, keep_output_clipboard
+from util.client.output.focus import before_typing
 from util.llm.llm_stop_monitor import reset, should_stop
 from util.llm.llm_cleanup_guard import (
     is_default_cleanup_role,
@@ -89,6 +90,7 @@ async def _process_paste(handler, role_config, content, matched_hotwords) -> tup
         return ("", 0, 0.0)
 
     final_text = TextOutput.strip_punc(polished_text or content)
+    before_typing()
     await paste_text(final_text, restore_clipboard=Config.restore_clip)
     return (final_text, token_count, gen_time)
 
@@ -101,6 +103,8 @@ async def _process_streaming(handler, role_config, content, matched_hotwords) ->
     def stream_write_chunk(chunk: str):
         nonlocal pending_buffer
         if not chunk: return
+        if not chunks:
+            before_typing()
         chunks.append(chunk)
 
         full_current = pending_buffer + chunk
@@ -156,6 +160,7 @@ async def _process_streaming(handler, role_config, content, matched_hotwords) ->
 
 async def output_text(text: str, paste: bool = None):
     """Output text (paste or type, by paste or Config.paste)"""
+    before_typing()
     if paste:
         await paste_text(text, restore_clipboard=Config.restore_clip)
     else:

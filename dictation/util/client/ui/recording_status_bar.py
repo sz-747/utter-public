@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import math
 import queue
+import sys
 import threading
 import time
 from typing import Optional
@@ -166,7 +167,23 @@ class RecordingStatusBar:
             self._draw_frame()
             self._position_window()
         self._window.deiconify()
+        self._keep_out_of_focus()
         self._animate()
+
+    def _keep_out_of_focus(self) -> None:
+        """The pill must never take keyboard focus, or the dictation would be typed into it."""
+        if sys.platform != 'win32' or self._window is None:
+            return
+        try:
+            import ctypes
+            gwl_exstyle, ws_ex_noactivate = -20, 0x08000000
+            hwnd = int(self._window.wm_frame(), 16)
+            user32 = ctypes.windll.user32
+            style = user32.GetWindowLongW(hwnd, gwl_exstyle)
+            if not style & ws_ex_noactivate:
+                user32.SetWindowLongW(hwnd, gwl_exstyle, style | ws_ex_noactivate)
+        except Exception as e:
+            logger.debug(f"Could not keep the status pill out of focus: {e}")
 
     def _hide_window(self) -> None:
         self._mode = None

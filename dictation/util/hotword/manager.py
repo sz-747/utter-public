@@ -26,10 +26,12 @@ try:
     HOT_THRESH = ClientConfig.hot_thresh
     HOT_SIMILAR = ClientConfig.hot_similar
     RECTIFY_THRESH = ClientConfig.hot_rectify
+    HOT_THRESH_RARE = getattr(ClientConfig, 'hot_thresh_rare', None)
 except ImportError:
     HOT_THRESH = 0.8
     HOT_SIMILAR = 0.6
     RECTIFY_THRESH = 0.5
+    HOT_THRESH_RARE = None
 
 from . import logger
 
@@ -75,7 +77,8 @@ class HotwordManager:
         self.similar_threshold = similar_threshold
         self.rectify_threshold = rectify_threshold
 
-        self.phoneme_corrector = PhonemeCorrector(threshold=threshold, similar_threshold=similar_threshold)
+        self.phoneme_corrector = PhonemeCorrector(threshold=threshold, similar_threshold=similar_threshold,
+                                                  rare_threshold=HOT_THRESH_RARE)
         self.rule_corrector = RuleCorrector()
         self.rectify_rag = RectificationRAG(
             str(self.files.get('rectify', 'hot-rectify.txt')),

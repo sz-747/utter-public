@@ -96,6 +96,10 @@ def _worth_learning(heard, corrected, text, pos):
     a, b = _letters(heard), _letters(corrected)
     if len(b) < 3 or b.isdigit():
         return False
+    if a != b and (b.startswith(a) or a.startswith(b)):
+        # Typing in progress, not a fix: letters run on after the word ("whatever" -> "whateverIs")
+        # or the word is half deleted ("Azure" -> "Azur", "Something before" -> "Somet")
+        return False
     if a == b:
         # Only a casing change: learn it when the new casing is unusual.
         return heard != corrected and is_distinctive(corrected, text, pos)

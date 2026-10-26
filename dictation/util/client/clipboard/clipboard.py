@@ -118,6 +118,25 @@ def save_and_restore_clipboard():
             logger.debug("Clipboard restored")
 
 
+# How long the target app gets to read the clipboard after Ctrl+V before the old content goes back.
+# 0.1 s was too short for a busy app, which then pasted the old clipboard.
+RESTORE_DELAY = 0.6
+
+
+async def _copy_with_retry(text: str, attempts: int = 8) -> bool:
+    """Put text on the clipboard, waiting while another app briefly holds it open."""
+    for attempt in range(attempts):
+        try:
+            pyclip.copy(text)
+            return True
+        except Exception as e:
+            if attempt == attempts - 1:
+                logger.warning(f"Could not write the clipboard ({attempts} tries): {e}")
+                return False
+            await asyncio.sleep(0.03)
+    return False
+
+
 async def paste_text(text: str, restore_clipboard: bool = True):
     """
     Paste text by simulating Ctrl+V.
@@ -126,16 +145,19 @@ async def paste_text(text: str, restore_clipboard: bool = True):
         text: The text to paste
         restore_clipboard: Whether to put the original clipboard contents back afterwards
     """
+    keep_output = should_keep_output_clipboard()
+
     # Save the clipboard
     original = ''
-    if restore_clipboard:
+    if restore_clipboard and not keep_output:
         try:
             original = safe_paste()
         except:
             pass
 
     # Copy the text to paste
-    pyclip.copy(text)
+    if not await _copy_with_retry(text):
+        return
     logger.debug(f"Copied text to the clipboard, length: {len(text)}")
 
     # Paste it (pynput simulates Ctrl+V)
@@ -145,12 +167,10 @@ async def paste_text(text: str, restore_clipboard: bool = True):
 
     logger.debug("Sent the paste command (Ctrl+V)")
 
-    keep_output = should_keep_output_clipboard()
-
-    # Restore the clipboard, unless the output should stay on it as a fallback
+    # The target app reads the clipboard after Ctrl+V. Writing to it right away (as this did to keep
+    # the output there) collided with that read, and the paste came out empty while the text stayed
+    # on the clipboard. When the output is kept it is already there, so nothing more is written.
     if restore_clipboard and original and not keep_output:
-        await asyncio.sleep(0.1)
-        pyclip.copy(original)
-        logger.debug("Clipboard restored")
-    elif keep_output:
-        safe_copy(text)
+        await asyncio.sleep(RESTORE_DELAY)
+        if await _copy_with_retry(original):
+            logger.debug("Clipboard restored")

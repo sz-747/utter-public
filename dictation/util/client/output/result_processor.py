@@ -294,6 +294,8 @@ class ResultProcessor:
 
         paste = Config.paste
         window_info = get_active_window_info()
+        from util.client.output import focus
+        focus.remember(window_info)
 
         # Nowhere to type (a menu, button or the desktop has focus): save it in Utter instead
         delivery = 'typed'

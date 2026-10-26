@@ -47,6 +47,9 @@ class ClientConfig:
 
     hot = True                  # Dictionary replacement (RAG matching)
     hot_thresh = 0.85           # RAG threshold for replacing with a dictionary word (high, used for real replacements)
+    hot_thresh_rare = 0.75      # Lower replacement threshold when what was heard has an uncommon English word
+                                # ("Kodex", "Herda"); everyday words keep hot_thresh. On two weeks of real
+                                # dictations 0.75 only fixed mishearings; 0.70 started replacing right words
     hot_similar = 0.6           # RAG threshold for similar dictionary words (low, used as AI polish context)
     hot_rectify = 0.6           # RAG threshold for correction history (low, used as AI polish context)
     hot_rule = True             # Custom regular-expression replacement rules

@@ -1,10 +1,18 @@
 # coding: utf-8
 
 import os
+import sys
 import logging
+import tempfile
 from pathlib import Path
 from logging.handlers import RotatingFileHandler
 from datetime import datetime
+
+
+def _running_tests() -> bool:
+    """True under `python -m unittest` (or pytest)."""
+    spec = getattr(sys.modules.get('__main__'), '__spec__', None)
+    return bool(spec and spec.name.startswith('unittest')) or 'pytest' in sys.modules
 
 
 class Logger:
@@ -50,7 +58,11 @@ class Logger:
             logger.propagate = False
 
         # Log folder
-        if log_dir is None:
+        if log_dir is None and _running_tests():
+            # Test runs log their fake dictations elsewhere, so they never show up in the client's
+            # real log (Utter's diagnosis skill reads it)
+            log_dir = os.path.join(tempfile.gettempdir(), 'utter-test-logs')
+        elif log_dir is None:
             from config_client import BASE_DIR
             log_dir = os.path.join(BASE_DIR, 'logs')
 

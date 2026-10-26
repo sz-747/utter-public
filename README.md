@@ -10,7 +10,7 @@
 </p>
 
 <p align="center">
-  <img src="docs/home.png" alt="Utter home screen: dictation banner with the animated Utter logo, then insights" width="900">
+  <img src="docs/home.png" alt="Utter home screen: the dictation banner with the animated Utter logo, then recent dictations" width="900">
 </p>
 
 ---
@@ -103,7 +103,7 @@ cd dictation; ..\.venv\Scripts\python.exe -m unittest discover -s util -p "test_
 .venv\Scripts\python.exe -B -m unittest discover -s skills/utter-stabilise/tests
 ```
 
-The tests run offline and need no speech server.
+The tests run offline and need no speech server. Two of them touch Windows itself and clean up after themselves: one copies text to the clipboard and puts your previous clipboard back, and one stores and deletes a test entry (`Utter/unit-test-secret`) in Windows Credential Manager.
 
 ---
 

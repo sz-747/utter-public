@@ -25,9 +25,8 @@
     </a>
     <nav class="nav-links">
       <a href="#how">How it works</a>
-      <a href="#install">Install</a>
       <a href="https://github.com/sz-747/utter-public">GitHub</a>
-      <a class="nav-cta" href="#install">Download</a>
+      <a class="nav-cta" href="#install">Install</a>
     </nav>
   </header>
 
@@ -43,14 +42,14 @@
         Private dictation that runs entirely on your Windows PC.
       </p>
       <div class="hero-actions reveal" style="--d: 3">
-        <a class="btn btn-primary" href="#install">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11m0 0-4.5-4.5M12 15l4.5-4.5M5 19h14"/></svg>
-          Download for Windows
-        </a>
-        <button class="btn btn-ghost" type="button" data-copy="prompt">
+        <button class="btn btn-primary" type="button" data-copy="prompt">
           <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2.5"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></svg>
           <span data-copy-label>Copy setup prompt for your AI agent</span>
         </button>
+        <a class="btn btn-ghost" href="https://github.com/sz-747/utter-public/releases/latest/download/utter-windows.zip" download>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11m0 0-4.5-4.5M12 15l4.5-4.5M5 19h14"/></svg>
+          Download for Windows
+        </a>
       </div>
 
       <!-- Live demo -->
@@ -133,21 +132,10 @@
       <p class="install-lede">Windows 10 or 11, 64-bit. Setup downloads about 1.5&nbsp;GB, mostly the speech model. A graphics card makes it faster but is not required.</p>
 
       <div class="install-grid">
-        <div class="card card-download">
-          <p class="card-kicker">Download</p>
-          <h3>The app</h3>
-          <p>The latest release as a zip, with the setup guide inside.</p>
-          <a class="btn btn-primary" href="https://github.com/sz-747/utter-public/releases/latest/download/utter-windows.zip" download>
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11m0 0-4.5-4.5M12 15l4.5-4.5M5 19h14"/></svg>
-            Download utter-windows.zip
-          </a>
-          <p class="card-note">Free and open source under the MIT license. <a href="https://github.com/sz-747/utter-public/releases/latest">Release notes</a></p>
-        </div>
-
         <div class="card card-agent">
-          <p class="card-kicker">One-click setup</p>
+          <p class="card-kicker">Recommended · one prompt</p>
           <h3>Let your coding agent install it</h3>
-          <p>Paste this into Claude Code, Codex or any agent that can run commands on your PC. It follows the install guide and tells you what passed.</p>
+          <p>Paste this into Claude Code, Codex or any agent that can run commands on your PC. It downloads everything, sets Utter up, and tells you what passed.</p>
           <div class="prompt">
             <pre id="prompt-text">Install Utter on this Windows PC. Follow https://github.com/sz-747/utter-public/blob/main/INSTALL.md step by step: clone the repo, set up the Python environment, download the speech model, and create the shortcuts. Ask me before anything that needs admin rights. Finish with the checks at the end of the guide and tell me what passed.</pre>
             <button class="btn btn-copy" type="button" data-copy="prompt">
@@ -155,6 +143,17 @@
               <span data-copy-label>Copy prompt</span>
             </button>
           </div>
+        </div>
+
+        <div class="card card-download">
+          <p class="card-kicker">Or download</p>
+          <h3>The app</h3>
+          <p>The latest release as a zip. Setup follows INSTALL.md inside it.</p>
+          <a class="btn btn-ghost" href="https://github.com/sz-747/utter-public/releases/latest/download/utter-windows.zip" download>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11m0 0-4.5-4.5M12 15l4.5-4.5M5 19h14"/></svg>
+            Download utter-windows.zip
+          </a>
+          <p class="card-note">Free and open source under the MIT license. <a href="https://github.com/sz-747/utter-public/releases/latest">Release notes</a></p>
         </div>
       </div>
     </section>

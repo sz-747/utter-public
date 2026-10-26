@@ -93,6 +93,7 @@ em { font-family: var(--serif); font-style: italic; font-weight: 400; }
 .btn-ghost { background: rgba(243, 239, 230, .04); color: var(--cream); border-color: var(--line-2); }
 .btn-ghost:hover { border-color: var(--cream-faint); background: rgba(243, 239, 230, .08); }
 .btn.copied { border-color: var(--teal); color: var(--teal); }
+.btn-primary.copied { background: var(--teal); color: var(--ink); border-color: transparent; }
 
 /* ---------- live demo ---------- */
 .stage {
@@ -179,7 +180,7 @@ kbd {
 .install { max-width: 1080px; margin: clamp(100px, 13vw, 170px) auto 0; padding: 0 var(--gutter); }
 .install .section-title { margin-bottom: 18px; }
 .install-lede { max-width: 640px; margin: 0 0 44px; color: var(--cream-dim); }
-.install-grid { display: grid; grid-template-columns: minmax(0, .8fr) minmax(0, 1.2fr); gap: 20px; }
+.install-grid { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, .8fr); gap: 20px; }
 .card {
   border-radius: 22px; padding: clamp(24px, 3.4vw, 38px); border: 1px solid var(--line);
   background: linear-gradient(170deg, var(--ink-3), var(--ink-2));

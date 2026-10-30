@@ -37,7 +37,7 @@ class NebiusTests(unittest.TestCase):
 
     def test_openai_compatible_request_streams_through_fake_client(self):
         client = FakeClient()
-        role = RoleConfig(provider='nebius', model='nvidia/nvidia-nemotron-3-nano-30b-a3b', max_tokens=12)
+        role = RoleConfig(provider='nebius', model='nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B', max_tokens=12)
         text, tokens, _ = LLMProcessor(None)._stream_request(
             client, {'model': role.model, 'messages': [{'role': 'user', 'content': 'hi'}], 'max_tokens': 12},
             None, None, role, None, [{'role': 'user', 'content': 'hi'}])

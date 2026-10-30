@@ -15,7 +15,7 @@ provider = 'ollama'                     # API provider: 'ollama', 'openai' (incl
 api_url = ''                            # Leave empty to use the provider's default URL (Ollama: http://127.0.0.1:11434)
                                         # 127.0.0.1 rather than localhost: Windows tries IPv6 first and stalls ~2 s on every connection
 api_key = ''                            # Nebius reads NEBIUS_API_KEY from the environment; Ollama does not need one
-model = (os.environ.get('NEBIUS_NANO_MODEL', 'nvidia/nvidia-nemotron-3-nano-30b-a3b')
+model = (os.environ.get('NEBIUS_NANO_MODEL', 'nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B')
          if provider == 'nebius' else 'qwen3:8b')
 
 # ==================== Context ====================

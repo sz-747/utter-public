@@ -1,6 +1,5 @@
-"""
-Default role - applies hotword replacements, polishes the text and fixes speech recognition errors
-"""
+"""Default role - applies hotword replacements, polishes text and fixes speech recognition errors."""
+import os
 
 # ==================== Basic info ====================
 name = ''                           # Role name (empty means this is the default role)
@@ -10,12 +9,14 @@ process = True                       # Enable LLM processing
 # ==================== API settings ====================
 # Local Ollama (ollama serve; the client starts it when AI polish finds it off)
 # To use LM Studio instead: provider = 'openai', api_url = 'http://127.0.0.1:1234/v1', api_key = 'lm-studio',
+# For Nebius: provider = 'nebius'; set NEBIUS_API_KEY in the environment (Nano model is selected below).
 # model = the id from `lms ls`, extra_options = {'extra_body': {'reasoning_effort': 'none'}}
-provider = 'ollama'                     # API provider: 'ollama', 'openai' (includes compatible APIs such as LM Studio), 'deepseek', 'cerebras', 'claude', 'gemini'
+provider = 'ollama'                     # API provider: 'ollama', 'openai' (includes compatible APIs such as LM Studio), 'deepseek', 'cerebras', 'claude', 'gemini', 'nebius'
 api_url = ''                            # Leave empty to use the provider's default URL (Ollama: http://127.0.0.1:11434)
                                         # 127.0.0.1 rather than localhost: Windows tries IPv6 first and stalls ~2 s on every connection
-api_key = ''                            # Ollama does not need one
-model = 'qwen3:8b'                      # Model name as `ollama list` shows it; any small instruct model works
+api_key = ''                            # Nebius reads NEBIUS_API_KEY from the environment; Ollama does not need one
+model = (os.environ.get('NEBIUS_NANO_MODEL', 'nvidia/nvidia-nemotron-3-nano-30b-a3b')
+         if provider == 'nebius' else 'qwen3:8b')
 
 # ==================== Context ====================
 max_context_length = 4096               # Maximum context length (tokens)

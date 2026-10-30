@@ -7,7 +7,7 @@ Two summarizers:
   CODEX_MODEL with the ChatGPT account the Codex CLI is signed in to. The
   transcript is sent to OpenAI.
 
-These are the notetaker's only AI backends.
+Nebius Token Factory is an optional online backend. Its key comes from NEBIUS_API_KEY.
 
 The AI lists the people it named; mark_people() then wraps each name as
 [[Name]] so the page can link it to a saved contact.
@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import os
 import re
 import shutil
 import socket
@@ -173,7 +174,7 @@ def summarize(lines: list[dict], me: str, contacts: list[str], backend: str = 'l
               invited: list[str] = ()) -> dict:
     if not lines:
         raise SummaryError('Nothing was said, so there is nothing to summarize.')
-    ask = ask or (ask_codex if backend == 'codex' else ask_local)
+    ask = ask or (ask_codex if backend == 'codex' else ask_nebius if backend == 'nebius' else ask_local)
     transcript = transcript_text(lines, me)
     if backend != 'codex' and len(transcript) > LOCAL_CHUNK_CHARS:
         parts = _chunks(transcript, LOCAL_CHUNK_CHARS)
@@ -224,17 +225,32 @@ def ask_local(prompt: str, schema: dict | None = None, config=None) -> str:
         options = dict(getattr(config, 'extra_options', {}) or {})
         body.update(options.pop('extra_body', {}) or {})
         body.update(options)
-        headers = {'Authorization': f'Bearer {getattr(config, "api_key", "") or "none"}'}
+        api_key = os.environ.get('NEBIUS_API_KEY', '') if provider == 'nebius' else getattr(config, 'api_key', '')
+        headers = {'Authorization': f'Bearer {api_key or "none"}'}
         response = requests.post(f'{url}/chat/completions', json=body, headers=headers, timeout=_TIMEOUT)
         response.raise_for_status()
         return response.json()['choices'][0]['message']['content']
     except requests.ConnectionError:
         if _start_local_ai(url):
             return ask_local(prompt, schema, config)
-        raise SummaryError(f'The local AI ({model or provider}) is not answering. '
-                           'Start it, or summarize with Codex.') from None
+        if provider == 'nebius':
+            raise SummaryError('Nebius Token Factory is not answering. Check your connection and NEBIUS_API_KEY.') from None
+        raise SummaryError(f'The local AI ({model or provider}) is not answering. Start it, or summarize with Codex.') from None
     except requests.RequestException as e:
-        raise SummaryError(f'The local AI failed: {e}') from None
+        name = 'Nebius Token Factory' if provider == 'nebius' else f'The local AI ({model or provider})'
+        raise SummaryError(f'{name} failed: {e}') from None
+
+
+def ask_nebius(prompt: str, schema: dict | None = None) -> str:
+    """Use the Nebius reasoning role, without storing or logging its API key."""
+    if not os.environ.get('NEBIUS_API_KEY'):
+        raise SummaryError('Set NEBIUS_API_KEY to use Nebius Token Factory.')
+    config = local_config()
+    config.provider = 'nebius'
+    config.api_url = 'https://api.tokenfactory.nebius.com/v1/'
+    config.api_key = ''
+    config.model = os.environ.get('NEBIUS_ULTRA_MODEL', 'nvidia/Nemotron-3-Ultra-550b-a55b')
+    return ask_local(prompt, schema, config)
 
 
 _local_ai_tried = 0.0

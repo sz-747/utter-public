@@ -9,7 +9,7 @@ state.nt = {
   selected: null, note: null, contacts: [], view: 'summary',
 };
 
-const SUMMARIZERS = { local: 'Local AI', codex: 'Codex (gpt-6-luna)' };
+const SUMMARIZERS = { local: 'Local AI', codex: 'Codex (gpt-6-luna)', nebius: 'Nebius (Nemotron Ultra)' };
 
 function clock(seconds) {
   const s = Math.max(0, Math.floor(seconds || 0));

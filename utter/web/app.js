@@ -653,10 +653,13 @@ function settingsBody(s) {
       <div class="group">
         ${row('Write the notes with', nt.summarizer === 'codex'
           ? 'gpt-6-luna through the Codex app server, with your ChatGPT login. The meeting transcript is sent to OpenAI.'
-          : `The AI polish model on this PC, ${esc(localName)}. Nothing leaves this PC.${llm.local && llm.reachable === false ? ` <span class="warn-text">${esc(llm.label || llm.provider)} is not answering right now.</span>` : ''}`,
+          : nt.summarizer === 'nebius'
+            ? 'Nemotron Ultra through Nebius Token Factory. The meeting transcript is sent to Nebius; set NEBIUS_API_KEY in the environment.'
+            : `The AI polish model on this PC, ${esc(localName)}. Nothing leaves this PC.${llm.local && llm.reachable === false ? ` <span class="warn-text">${esc(llm.label || llm.provider)} is not answering right now.</span>` : ''}`,
           `<select class="select" data-nt-pref="summarizer">
             <option value="codex" ${nt.summarizer === 'codex' ? 'selected' : ''} ${nt.codex ? '' : 'disabled'}>Codex (gpt-6-luna)${nt.codex ? '' : ', not installed'}</option>
-            <option value="local" ${nt.summarizer !== 'codex' ? 'selected' : ''}>Local AI</option>
+            <option value="local" ${nt.summarizer === 'local' ? 'selected' : ''}>Local AI</option>
+            <option value="nebius" ${nt.summarizer === 'nebius' ? 'selected' : ''}>Nebius Token Factory (Nemotron Ultra)</option>
           </select>`)}
         ${nt.codex ? row('ChatGPT account', '<span id="codex-email">Checking…</span>', '<span id="codex-action"></span>') : ''}
       </div>
@@ -694,7 +697,7 @@ function settingsBody(s) {
     <div class="group">
       ${row('Speech recognition', 'Runs on this PC. Audio is never uploaded.', '<span class="chip on">Local</span>')}
       ${row('AI polish', s.llm?.local ? `Runs on this PC through ${esc(s.llm.label)} when it is on.` : `Sends text to ${esc(s.llm?.provider)} when it is on.`, s.llm?.local ? '<span class="chip on">Local</span>' : '<span class="chip warn">Online</span>')}
-      ${row('Meeting notes', s.notetaker?.summarizer === 'codex' ? 'Written by Codex: meeting transcripts are sent to OpenAI through your ChatGPT login.' : 'Written by the AI model on this PC. Meeting audio is never saved.', s.notetaker?.summarizer === 'codex' ? '<span class="chip warn">Online</span>' : '<span class="chip on">Local</span>')}
+      ${row('Meeting notes', s.notetaker?.summarizer === 'codex' ? 'Written by Codex: meeting transcripts are sent to OpenAI through your ChatGPT login.' : s.notetaker?.summarizer === 'nebius' ? 'Written by Nemotron Ultra: meeting transcripts are sent to Nebius Token Factory.' : 'Written by the AI model on this PC. Meeting audio is never saved.', s.notetaker?.summarizer === 'local' ? '<span class="chip on">Local</span>' : '<span class="chip warn">Online</span>')}
       ${row('AI dictionary review', s.values.auto_review ? 'Sends the text of new dictations to OpenAI through your Codex CLI login, in batches while you are idle, to learn misheard words. Turn it off in Dictation.' : 'Off. No dictations are sent for review.', s.values.auto_review ? '<span class="chip warn">Online</span>' : '<span class="chip off">Off</span>')}
       ${row('Coding agents (Utter MCP)', agentNames.length ? `${esc(agentNames.join(', '))} can read your dictations, insights, dictionary and meetings when you ask. What they read is sent to their model's provider.` : 'None added.', agentNames.length ? '<span class="chip warn">Online</span>' : '<span class="chip off">Off</span>')}
       ${row('LM Studio (Utter MCP)', s.connectors?.lmstudio?.added ? 'A model on this PC can read your dictations, insights, dictionary and meetings when you switch Utter on in a chat. Nothing is sent online.' : 'Not added.', s.connectors?.lmstudio?.added ? '<span class="chip on">Local</span>' : '<span class="chip off">Off</span>')}

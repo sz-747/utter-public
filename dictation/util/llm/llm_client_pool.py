@@ -5,6 +5,7 @@ Features:
 1. Caches OpenAI client instances
 2. Creates and returns clients by provider and api_url
 """
+import os
 import socket
 from urllib.parse import urlparse
 from openai import OpenAI
@@ -58,7 +59,8 @@ class ClientPool:
             final_url = self.api_url_for(provider, api_url)
 
             # api_key
-            final_key = api_key or APIConfig.DEFAULT_API_KEYS.get(provider, '')
+            final_key = api_key or (os.environ.get('NEBIUS_API_KEY', '') if provider == 'nebius'
+                                    else APIConfig.DEFAULT_API_KEYS.get(provider, ''))
 
             # Timeout by provider, or the default when not listed
             timeout = APIConfig.DEFAULT_TIMEOUTS.get(provider, APIConfig.DEFAULT_TIMEOUT)

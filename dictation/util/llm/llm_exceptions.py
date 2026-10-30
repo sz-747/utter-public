@@ -31,7 +31,7 @@ class OpenAIErrorWrapper(LLMException):
 # because the dictation itself was typed as heard.
 class AuthenticationErrorWrapper(OpenAIErrorWrapper):
     """Authentication failed (401)"""
-    user_message = "the model server rejected the API key.\nCheck api_key in LLM/default.py."
+    user_message = "the provider rejected the API key.\nCheck the provider key configuration."
 
 
 class RateLimitErrorWrapper(OpenAIErrorWrapper):
@@ -46,14 +46,14 @@ class TimeoutErrorWrapper(OpenAIErrorWrapper):
 
 class ConnectionErrorWrapper(OpenAIErrorWrapper):
     """Connection failed"""
-    user_message = "the model server isn't answering.\nStart it (Ollama: ollama serve; LM Studio: lms server start), or turn AI polish off in Utter."
+    user_message = "the model server isn't answering.\nStart it (Ollama: ollama serve; LM Studio: lms server start), check your provider connection, or turn AI polish off in Utter."
     starting_message = "Ollama wasn't running.\nStarting it now; your next dictation will be polished."
     starting = False          # True when the client has just started a local Ollama (util/llm/local_server.py)
 
 
 class APIResponseErrorWrapper(OpenAIErrorWrapper):
     """API response error (4xx, 5xx)"""
-    user_message = "the model server returned an error.\nCheck the model name in LLM/default.py (ollama list)."
+    user_message = "the provider returned an error.\nCheck the model name and provider's model catalog."
 
 
 # OpenAI exception map

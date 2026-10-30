@@ -32,14 +32,23 @@ Anything you would otherwise type: messages, email, documents, notes, prompts fo
 - **AI dictionary review (optional).** When you are idle, a stronger model reads batches of new dictations through your Codex CLI login and learns misheard terms ("codecs" for "Codex"). A fix is accepted only if it quotes the transcript and clears a confidence threshold. This sends dictation text to OpenAI, so it is off until you turn it on in Settings > Dictation.
 - **Dictionary matched by sound.** Words in your dictionary replace sound-alike mistakes ("git hub" becomes "GitHub"); replacement rules handle fixed phrases, spoken email addresses and filler words.
 - **AI polish (optional).** A local model (LM Studio or Ollama) cleans up long dictations: removes fillers and false starts, fixes punctuation, and keeps your words. A guard falls back to the original text if the model starts answering instead of editing.
+
 - **Use a stronger PC's speech engine over Tailscale.** A laptop can run only the client and send audio to the speech server on your desktop.
 - **Insights**: this month's words, your speaking speed against your typing, time saved, what Utter corrected and learned, words per day and the apps you dictate into.
 - **Notetaker**: records a meeting (your microphone as you, what the PC plays as everyone else), transcribes it on the same local engine, then writes a title, overview, key points and next steps. Audio is never saved. Utter can offer to start it when a Google Meet, Zoom or Teams call begins.
 - **MCP**: Codex, Claude Code, Pi or LM Studio can search what you dictated and what was said in your meetings, read-only.
 
+## Nebius Token Factory + NVIDIA Nemotron
+
+Nebius is an optional provider for the existing OpenAI-compatible model path. Set `NEBIUS_API_KEY` in the environment, then choose `provider = 'nebius'` in `dictation/LLM/default.py` for AI polish. That role defaults to `nvidia/nvidia-nemotron-3-nano-30b-a3b` (override with `NEBIUS_NANO_MODEL`): Nano is the smaller, efficient choice for frequent dictation cleanup. For meeting notes, choose **Nebius Token Factory (Nemotron Ultra)** under Settings > Notetaker; it uses `nvidia/Nemotron-3-Ultra-550b-a55b` (override with `NEBIUS_ULTRA_MODEL`) for deeper reasoning. Meeting transcripts are sent to Nebius when selected. The default Notetaker choice remains Codex.
+
+The model IDs follow Nebius's [Nano cookbook](https://github.com/nebius/token-factory-cookbook/blob/main/models/nemotron/nemotron3-nano-30b.md), [Ultra cookbook](https://github.com/nebius/token-factory-cookbook/blob/main/models/nemotron/nemotron3-ultra-550b-a55b.md), and [Nemotron model catalog](https://nebius.com/services/token-factory/models/nvidia-nemotron-models-inference). Nebius documents the OpenAI-compatible endpoint at `https://api.tokenfactory.nebius.com/v1/`.
+
+**What changed during the hackathon:** Utter gained Nebius as one provider beside its existing choices. Dictation can use Nemotron Nano for quick polish, and the Notetaker can use Nemotron Ultra for meeting notes. The rest of Utter remains the same app.
+
 ## Evidence
 
-- **205 offline tests** cover the window (79), the dictation client (119) and the bundled diagnosis skill (7): settings, the dictionary formats, learning from edits, the AI polish guard, insights, the Notetaker and the MCP tools. They need no speech server.
+- **254 offline tests** cover the window (86), the dictation client (148) and the bundled diagnosis skill (20): settings, the dictionary formats, learning from edits, the AI polish guard, insights, the Notetaker and the MCP tools. They need no speech server.
 - **The English dictionary matcher** was checked once, when the Chinese-language branch was removed: it gave the same results as before on 65 recorded matching cases. The main cases are kept as a test.
 - **Limits:** the tests do not use a microphone or type into real apps. Speech accuracy depends on Qwen3-ASR, your microphone and your accent, and has not been measured for this repo.
 

@@ -60,7 +60,7 @@ CREATE TABLE IF NOT EXISTS prefs (key TEXT PRIMARY KEY, value TEXT NOT NULL);
 
 CONTACT_FIELDS = ('name', 'email', 'company', 'notes')
 # Notetaker preferences live here, not in the client's settings.json, whose keys the client owns.
-PREFS = {'summarizer': ('local', 'codex'), 'call_popup': ('on', 'off')}
+PREFS = {'summarizer': ('local', 'codex', 'nebius'), 'call_popup': ('on', 'off')}
 PREF_DEFAULTS = {'summarizer': 'codex',   # Codex (gpt-6-luna); see DS-008
                  'call_popup': 'on'}      # offer to take notes when a call starts; see DS-010
 

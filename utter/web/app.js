@@ -623,6 +623,7 @@ function settingsBody(s) {
       <h2 class="serif">Dictation</h2>
       <div class="group-title">Corrections</div>
       <div class="group">
+        ${row('Tell the speech model my dictionary', 'Each recording starts with your dictionary words, so it writes "Pi" or "Codex" instead of a sound-alike. Turn off if it starts writing dictionary words you did not say.', toggle('dictionary_context', v.dictionary_context))}
         ${row('Dictionary corrections', 'Swap sound-alike mistakes for words in your dictionary.', toggle('hot', v.hot))}
         ${row('Replacement rules', 'Rewrite exact phrases and spoken punctuation ("comma", "new line").', toggle('hot_rule', v.hot_rule))}
         ${row('Learn from my corrections', 'After each dictation, Utter watches the text field for 90 seconds. Names you fix are added to your dictionary. Terminals and password fields are skipped, and only the corrected word is kept.', toggle('auto_learn', v.auto_learn))}
@@ -633,11 +634,13 @@ function settingsBody(s) {
         ${row('AI polish', `Removes filler words and fixes punctuation in long dictations using ${esc(llm.model || 'the model')} (${esc(llm.label || llm.provider || '')}${llm.local ? ', on this PC' : ''}). Double-tap Right Shift to switch it while dictating.`, toggle('llm_enabled', v.llm_enabled))}
         ${row('Only polish dictations longer than', 'Shorter ones are typed straight away, with no delay.', `<span><input type="number" min="0" step="10" data-number-setting="llm_min_chars" value="${v.llm_min_chars}"> <span class="muted">chars</span></span>`)}
       </div>
-      ${v.llm_enabled && llm.reachable === false ? `<p class="note warn">${esc(llm.label || llm.provider)} is not answering on this PC, so long dictations cannot be polished. Start ${esc(llm.label || llm.provider)} with ${esc(llm.model)} or turn AI polish off.</p>` : ''}
+      ${v.llm_enabled && llm.reachable === false ? (llm.provider === 'ollama'
+        ? `<p class="note warn">Ollama is not running right now. Your next long dictation starts it: that one is typed without polish, the ones after are polished. Or turn AI polish off.</p>`
+        : `<p class="note warn">${esc(llm.label || llm.provider)} is not answering on this PC, so long dictations are typed without polish. Start ${esc(llm.label || llm.provider)} with ${esc(llm.model)} or turn AI polish off.</p>`) : ''}
       <div class="group-title">Output</div>
       <div class="group">
         ${row('Paste instead of typing', 'Faster for long text. Uses the clipboard briefly.', toggle('paste', v.paste))}
-        ${row('Keep the result on the clipboard', 'So you can paste it again if the text lands in the wrong place.', toggle('copy_output_to_clipboard', v.copy_output_to_clipboard))}
+        ${row('Keep the result on the clipboard', 'So you can paste it again if the text lands in the wrong place. Off: what you copied before comes back once the dictation is in the text box.', toggle('copy_output_to_clipboard', v.copy_output_to_clipboard))}
       </div>`;
   }
   if (section === 'notetaker') {

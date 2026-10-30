@@ -38,6 +38,24 @@
 
       <article class="release">
         <header class="release-head">
+          <h2><a href="https://github.com/sz-747/utter-public/releases/tag/v0.2.0">0.2.0</a></h2>
+          <time datetime="2026-10-30">30 Oct 2026</time>
+        </header>
+        <div class="release-body">
+          <ul>
+            <li>The speech model hears your dictionary before you speak, so it writes <span class="inline-demo"><s>codecs</s> Codex</span> the first time. A switch in Settings turns it off.</li>
+            <li>AI polish runs on Ollama by default and starts it when it is off. Thinking models such as Qwen 3.5 no longer return empty text, and a skipped polish shows a small notice instead of a red error.</li>
+            <li>Nothing is lost: a dictation is typed even when its archive is busy or one step fails, a restart waits for the dictation you are saying, and your old clipboard comes back only once the text is in the box.</li>
+            <li>A word you fixed once no longer rewrites ordinary words like "scale" or "art" everywhere, and one command checks recognition, its speed, GPU memory and AI polish.</li>
+          </ul>
+          <figure class="release-shot">
+            <img src="assets/changelog/0.2.0.webp" width="1336" height="293" alt="Utter's Settings, Corrections: the new switch Tell the speech model my dictionary, on">
+          </figure>
+        </div>
+      </article>
+
+      <article class="release">
+        <header class="release-head">
           <h2><a href="https://github.com/sz-747/utter-public/releases/tag/v0.1.2">0.1.2</a></h2>
           <time datetime="2026-10-27">27 Oct 2026</time>
         </header>
@@ -49,7 +67,7 @@
             <li>With AI polish on and its model server off, your words are typed straight away instead of after a 7-second wait.</li>
           </ul>
           <figure class="release-shot">
-            <img src="assets/changelog/0.1.2.webp" width="1496" height="368" alt="Utter's Insights: 2,971 words corrected for you (names, phrases and polished) and 46 words learned, right 94% of the time after">
+            <img src="assets/changelog/0.1.2.webp" width="1496" height="368" loading="lazy" alt="Utter's Insights: 2,971 words corrected for you (names, phrases and polished) and 46 words learned, right 94% of the time after">
           </figure>
         </div>
       </article>

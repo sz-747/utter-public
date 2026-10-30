@@ -74,7 +74,9 @@ Run `$base\utter.cmd`. Utter starts the speech server (up to a minute the first 
 
 ## 6. Optional: AI polish
 
-Filler words such as "um" and "uh" are removed without any AI model. For smarter cleanup (self-corrections, "like", "you know"), AI polish needs a local model server. If the person already uses LM Studio or Ollama, point `dictation\LLM\default.py` at it (LM Studio: `provider = 'openai'`, `api_url = 'http://127.0.0.1:1234/v1'` (use 127.0.0.1, not localhost: on Windows, localhost adds about 2 seconds to every request), the model id from `lms ls`, and `extra_options = {'extra_body': {'reasoning_effort': 'none'}}` for models that think before answering). Do not download a model without asking; they are several GB.
+Filler words such as "um" and "uh" are removed without any AI model. For smarter cleanup (self-corrections, "like", "you know"), AI polish needs a local model server. The default is Ollama with `qwen3:8b` (`dictation\LLM\default.py`): with Ollama installed, `ollama pull qwen3:8b` is all it needs, and the client starts `ollama serve` itself when it finds it off. Another model works too: set `model` to its name from `ollama list`. If the person uses LM Studio instead, set `provider = 'openai'`, `api_url = 'http://127.0.0.1:1234/v1'` (use 127.0.0.1, not localhost: on Windows, localhost adds about 2 seconds to every request), `api_key = 'lm-studio'`, the model id from `lms ls`, and `extra_options = {'extra_body': {'reasoning_effort': 'none'}}` for models that think before answering. Do not download a model without asking; they are several GB.
+
+To check the whole pipeline afterwards (speech server, recognition speed, GPU memory, AI polish): `.venv\Scripts\python.exe skills\utter-stabilise\scripts\pipeline_check.py doctor`. It prints one PASS/FAIL line per stage and a `Result:`.
 
 ## 7. Checks
 
@@ -104,7 +106,7 @@ To run dictation without the window: `dictation\start-dictation.cmd`, and `dicta
 
 - **Settings in the window**: shortcuts, microphone, sounds, muting other apps, learning, AI review, AI polish and output.
 - **The dictionary**: `dictation\hot.txt` (words), `dictation\hot-rule.txt` (replacement rules) and `dictation\hot-rectify.txt` (examples for AI polish). They are created from the `*.example.txt` files the first time the client runs, and Git ignores them. Words can also be edited in the window's Dictionary.
-- **Everything else**: `dictation\config_client.py` (defaults) and `dictation\LLM\default.py` (the AI polish model and prompt). Step 6 covers pointing AI polish at LM Studio or Ollama (`provider = 'ollama'`); after that, switch it on in Settings > Dictation.
+- **Everything else**: `dictation\config_client.py` (defaults) and `dictation\LLM\default.py` (the AI polish model and prompt). Step 6 covers the AI polish model (Ollama by default, or LM Studio); after that, switch it on in Settings > Dictation. `dictionary_context` (also in Settings > Dictation) tells the speech model your dictionary words on each recording.
 
 ## Remote dictation over Tailscale
 

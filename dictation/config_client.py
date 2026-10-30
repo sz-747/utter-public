@@ -1,7 +1,7 @@
 import os
 
 # Version of Utter's dictation client (forked from CapsWriter-Offline 2.5)
-__version__ = '0.1.1'
+__version__ = '0.2.0'
 
 # Project root
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -42,6 +42,7 @@ class ClientConfig:
     audio_name_len = 20         # How many characters of the recognised text go into the recording's file name (keep under 200)
 
     context = ''                # Context for the speech model (names, places, technical terms)
+    dictionary_context = True   # Also tell the speech model your dictionary (hot.txt + hot-learned.txt) on mic recordings, so it writes Pi or Codex, not a sound-alike
 
     trash_punc = ',.'           # Trailing punctuation removed from results
 

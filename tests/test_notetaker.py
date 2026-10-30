@@ -97,11 +97,22 @@ class SummaryTests(unittest.TestCase):
         config = type('C', (), {'provider': 'openai', 'model': 'm', 'api_url': 'http://127.0.0.1:1234/v1', 'api_key': 'k'})
         ok = mock.Mock(**{'json.return_value': {'choices': [{'message': {'content': 'hi'}}]}})
         with mock.patch.object(summary.requests, 'post', side_effect=[summary.requests.ConnectionError(), ok]), \
-             mock.patch.object(summary, '_lm_studio_tried', 0.0), \
+             mock.patch.object(summary, '_local_ai_tried', 0.0), \
              mock.patch.object(summary.Path, 'exists', return_value=True), \
              mock.patch.object(summary.subprocess, 'run', return_value=mock.Mock(returncode=0)) as run:
             self.assertEqual(summary.ask_local('p', None, config), 'hi')
         self.assertEqual(run.call_args.args[0][1:], ['server', 'start'])
+
+    def test_ollama_is_started_when_it_is_off(self):
+        config = type('C', (), {'provider': 'ollama', 'model': 'm', 'api_url': ''})
+        ok = mock.Mock(**{'json.return_value': {'message': {'content': 'hi'}}})
+        with mock.patch.object(summary.requests, 'post', side_effect=[summary.requests.ConnectionError(), ok]), \
+             mock.patch.object(summary, '_local_ai_tried', 0.0), \
+             mock.patch.object(summary.shutil, 'which', return_value='ollama.exe'), \
+             mock.patch.object(summary.socket, 'create_connection'), \
+             mock.patch.object(summary.subprocess, 'Popen') as popen:
+            self.assertEqual(summary.ask_local('p', None, config), 'hi')
+        self.assertEqual(popen.call_args.args[0], ['ollama.exe', 'serve'])
 
     def test_bad_json_is_retried_once(self):
         good = json.dumps({'title': 't', 'overview': 'o', 'key_points': [], 'action_items': [], 'people': []})

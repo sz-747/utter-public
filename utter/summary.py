@@ -1,7 +1,7 @@
 """Turn a meeting transcript into notes: a title, an overview, key points and action items.
 
 Two summarizers:
-- 'local': the AI polish model on this PC (LM Studio, Ollama or another
+- 'local': the AI polish model on this PC (Ollama, LM Studio or another
   OpenAI-style server in the dictation client's LLM/default.py). Nothing leaves the PC.
 - 'codex' (the default): the Codex app server (utter/codex.py) running
   CODEX_MODEL with the ChatGPT account the Codex CLI is signed in to. The
@@ -17,6 +17,8 @@ from __future__ import annotations
 import importlib.util
 import json
 import re
+import shutil
+import socket
 import subprocess
 import time
 from pathlib import Path
@@ -227,7 +229,7 @@ def ask_local(prompt: str, schema: dict | None = None, config=None) -> str:
         response.raise_for_status()
         return response.json()['choices'][0]['message']['content']
     except requests.ConnectionError:
-        if _start_lm_studio(url):
+        if _start_local_ai(url):
             return ask_local(prompt, schema, config)
         raise SummaryError(f'The local AI ({model or provider}) is not answering. '
                            'Start it, or summarize with Codex.') from None
@@ -235,24 +237,43 @@ def ask_local(prompt: str, schema: dict | None = None, config=None) -> str:
         raise SummaryError(f'The local AI failed: {e}') from None
 
 
-_lm_studio_tried = 0.0
+_local_ai_tried = 0.0
 
 
-def _start_lm_studio(url: str) -> bool:
-    """LM Studio's server is often off; start it (headless, with the lms CLI) when it is the local AI.
-    It loads the model on the first request. At most one try every 5 minutes."""
-    global _lm_studio_tried
+def _start_local_ai(url: str) -> bool:
+    """Start the local AI's server when it is off: `ollama serve` for Ollama (port 11434), or LM
+    Studio's server (headless, with the lms CLI, port 1234). It loads the model on the first
+    request. At most one try every 5 minutes."""
+    global _local_ai_tried
+    ollama = re.match(r'https?://(127\.0\.0\.1|localhost):11434\b', url or '')
     lms = Path.home() / '.lmstudio' / 'bin' / 'lms.exe'
-    if time.time() - _lm_studio_tried < 300 or not lms.exists() \
-            or not re.match(r'https?://(127\.0\.0\.1|localhost):1234\b', url or ''):
+    lm_studio = re.match(r'https?://(127\.0\.0\.1|localhost):1234\b', url or '')
+    if time.time() - _local_ai_tried < 300:
         return False
-    _lm_studio_tried = time.time()
-    try:
-        result = subprocess.run([str(lms), 'server', 'start'], capture_output=True, text=True, timeout=90,
-                                creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))
-        return result.returncode == 0
-    except (OSError, subprocess.SubprocessError):
+    if ollama and shutil.which('ollama'):
+        _local_ai_tried = time.time()
+        flags = getattr(subprocess, 'CREATE_NO_WINDOW', 0) | getattr(subprocess, 'CREATE_NEW_PROCESS_GROUP', 0)
+        try:
+            subprocess.Popen([shutil.which('ollama'), 'serve'], creationflags=flags, stdin=subprocess.DEVNULL,
+                             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        except OSError:
+            return False
+        for _ in range(40):                    # it listens within a second or two
+            try:
+                with socket.create_connection(('127.0.0.1', 11434), timeout=0.25):
+                    return True
+            except OSError:
+                time.sleep(0.25)
         return False
+    if lm_studio and lms.exists():
+        _local_ai_tried = time.time()
+        try:
+            result = subprocess.run([str(lms), 'server', 'start'], capture_output=True, text=True, timeout=90,
+                                    creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))
+            return result.returncode == 0
+        except (OSError, subprocess.SubprocessError):
+            return False
+    return False
 
 
 # -- Codex app server (utter/codex.py) ----------------------------------------------

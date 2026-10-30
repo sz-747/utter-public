@@ -61,6 +61,9 @@ class LLMProcessor:
             error = ConnectionErrorWrapper(
                 ConnectionRefusedError(f'nothing is listening at {api_url}'), role_config.provider
             )
+            if role_config.provider == 'ollama':
+                from util.llm.local_server import start_ollama
+                error.starting = start_ollama()      # this dictation is typed as heard; the next is polished
             logger.error(f"LLM API call failed: {error}")
             raise error
 
@@ -230,17 +233,23 @@ class LLMProcessor:
             'options': ollama_options,
         }
 
-        if role_config.enable_thinking:
-            try:
-                import inspect
-                supports_think = 'think' in inspect.signature(client.chat).parameters
-            except (TypeError, ValueError):
-                supports_think = False
+        # Say thinking is off, too: left out, thinking models such as Qwen 3.5 think by default,
+        # and one spent 11 s thinking and returned no text; with think=False it answered in 0.3 s
+        try:
+            import inspect
+            supports_think = 'think' in inspect.signature(client.chat).parameters
+        except (TypeError, ValueError):
+            supports_think = False
 
-            if supports_think:
-                chat_kwargs['think'] = True
-            else:
-                logger.warning("This Ollama SDK does not support the think parameter; skipped the thinking switch")
+        if supports_think:
+            chat_kwargs['think'] = bool(role_config.enable_thinking)
+        elif role_config.enable_thinking:
+            logger.warning("This Ollama SDK does not support the think parameter; skipped the thinking switch")
+
+        # keep_alive: how long the model stays loaded when idle (Ollama's default is 5 minutes)
+        keep_alive = (role_config.extra_options or {}).get('keep_alive')
+        if keep_alive is not None:
+            chat_kwargs['keep_alive'] = keep_alive
 
         stream = client.chat(**chat_kwargs)
 

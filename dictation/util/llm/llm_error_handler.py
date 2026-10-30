@@ -37,10 +37,12 @@ def get_user_friendly_message(error: Exception) -> str:
     """
     # Wrapped OpenAI exception
     if isinstance(error, OpenAIErrorWrapper):
+        if getattr(error, 'starting', False):
+            return error.starting_message
         return error.user_message
 
     # Any other exception
-    return f"Processing failed: {type(error).__name__}"
+    return f"the request failed ({type(error).__name__})."
 
 
 def should_fallback_to_original(error: Exception) -> bool:
@@ -96,15 +98,14 @@ def show_error_notification(error: Exception, role_name: str = "LLM"):
 
         toast_manager = ToastMessageManager()
 
-        # Errors use a red background and a larger size
+        # The dictation was typed, only not polished: the same small notice as "Not typed ... Saved in Utter",
+        # not a red error box
         msg = ToastMessage(
-            text=f"❌ {role_name or 'AI polish'}: {user_msg}",
-            font_size=16,           # Larger font
-            bg='#8B0000',           # Dark red
+            text=f"Typed without AI polish: {user_msg}",
+            font_size=12,
+            bg='#1f5f57',
             fg='white',
-            duration=5000,          # Show for 5 seconds
-            initial_width=0.6,      # 60% of the screen width
-            initial_height=80,      # Fixed minimum height of 80 px
+            duration=4500,
             streaming=False,
             window_type='text'
         )

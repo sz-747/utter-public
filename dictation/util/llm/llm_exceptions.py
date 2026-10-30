@@ -27,29 +27,33 @@ class OpenAIErrorWrapper(LLMException):
         super().__init__(f"[{provider}] {type(original_error).__name__}: {str(original_error)}")
 
 
+# user_message: why polish was skipped, then what to do; the notice puts "Typed without AI polish:" first,
+# because the dictation itself was typed as heard.
 class AuthenticationErrorWrapper(OpenAIErrorWrapper):
     """Authentication failed (401)"""
-    user_message = "API authentication failed, check the API key"
+    user_message = "the model server rejected the API key.\nCheck api_key in LLM/default.py."
 
 
 class RateLimitErrorWrapper(OpenAIErrorWrapper):
     """Rate limited (429)"""
-    user_message = "API rate limit reached, try again later"
+    user_message = "the model server is rate limiting requests."
 
 
 class TimeoutErrorWrapper(OpenAIErrorWrapper):
     """Request timed out"""
-    user_message = "API request timed out, check the network connection"
+    user_message = "the model server took too long."
 
 
 class ConnectionErrorWrapper(OpenAIErrorWrapper):
     """Connection failed"""
-    user_message = "Can't reach the model server (LM Studio: run lms server start). Your words were kept without polish."
+    user_message = "the model server isn't answering.\nStart it (Ollama: ollama serve; LM Studio: lms server start), or turn AI polish off in Utter."
+    starting_message = "Ollama wasn't running.\nStarting it now; your next dictation will be polished."
+    starting = False          # True when the client has just started a local Ollama (util/llm/local_server.py)
 
 
 class APIResponseErrorWrapper(OpenAIErrorWrapper):
     """API response error (4xx, 5xx)"""
-    user_message = "The API returned an error, check the settings and parameters"
+    user_message = "the model server returned an error.\nCheck the model name in LLM/default.py (ollama list)."
 
 
 # OpenAI exception map

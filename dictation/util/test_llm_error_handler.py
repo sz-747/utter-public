@@ -31,9 +31,20 @@ class LLMErrorHandlerTests(unittest.TestCase):
 
         self.assertEqual((text, ok), ('the original dictation', False))
         self.manager.add_message.assert_called_once()
-        shown = self.manager.add_message.call_args.args[0].text
-        self.assertIn("AI polish: Can't reach the model server", shown)
+        notice = self.manager.add_message.call_args.args[0]
+        self.assertTrue(notice.text.startswith("Typed without AI polish: the model server isn't answering"))
+        self.assertNotEqual(notice.bg, '#8B0000')   # the dictation was typed: a notice, not a red error
         self.logger.error.assert_not_called()   # no "Could not show the toast"
+
+    def test_a_stopped_ollama_is_started_and_says_so(self):
+        error = ConnectionErrorWrapper(ConnectionRefusedError('nothing is listening'), 'ollama')
+        error.starting = True
+
+        llm_error_handler.handle_llm_error(error, 'raw')
+
+        shown = self.manager.add_message.call_args.args[0].text
+        self.assertIn("Ollama wasn't running", shown)
+        self.assertIn('next dictation will be polished', shown)
 
     def test_connection_error_is_shown_once_until_a_request_succeeds(self):
         error = ConnectionErrorWrapper(Exception('Connection error.'), 'openai')
@@ -95,6 +106,27 @@ class LocalServerCheckTests(unittest.TestCase):
         with self.assertRaises(ConnectionErrorWrapper):
             LLMProcessor(pool).process(role, [{'role': 'user', 'content': 'hi'}])
         pool.get_client.assert_not_called()
+
+    def test_processor_starts_a_stopped_local_ollama(self):
+        role = RoleConfig(provider='ollama', api_url=f'http://127.0.0.1:{_closed_local_port()}', model='m')
+
+        with mock.patch('util.llm.local_server.start_ollama', return_value=True) as start, \
+                self.assertRaises(ConnectionErrorWrapper) as caught:
+            LLMProcessor(mock.Mock()).process(role, [{'role': 'user', 'content': 'hi'}])
+        start.assert_called_once()
+        self.assertTrue(caught.exception.starting)
+
+    def test_ollama_start_is_not_retried_on_every_dictation(self):
+        from util.llm import local_server
+        with mock.patch.object(local_server, '_last_start', 0.0), \
+                mock.patch.object(local_server.shutil, 'which', return_value='ollama.exe'), \
+                mock.patch.object(local_server.subprocess, 'Popen') as popen:
+            self.assertTrue(local_server.start_ollama())
+            self.assertTrue(local_server.start_ollama())
+        popen.assert_called_once()
+        with mock.patch.object(local_server, '_last_start', 0.0), \
+                mock.patch.object(local_server.shutil, 'which', return_value=None):
+            self.assertFalse(local_server.start_ollama())        # not installed: the notice says how to start it
 
 
 if __name__ == '__main__':

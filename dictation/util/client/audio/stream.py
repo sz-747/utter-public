@@ -186,6 +186,9 @@ class AudioStreamManager:
                 if desired != self._selected_key or (desired is not None and not active):
                     logger.info('Microphone availability changed; updating input.')
                     self.reopen()
+            except subprocess.TimeoutExpired:
+                # Seen right after the PC wakes ("timed out after -3"): the next check, 5 s later, works.
+                logger.debug('Microphone probe timed out; checking again shortly')
             except Exception as exc:
                 logger.warning('Microphone monitor: %s', exc)
 

@@ -74,11 +74,22 @@ class _Muter:
 
     def __init__(self):
         self._changed = []   # (pid, volume control, 'mute' or previous level)
+        self._no_output_noted = False
 
     def mute(self, mode='mute', media_only=False):
         from pycaw.pycaw import AudioUtilities
         own = os.getpid()
-        for session in AudioUtilities.GetAllSessions():
+        try:
+            sessions = AudioUtilities.GetAllSessions()
+        except Exception as e:
+            # "Element not found" (0x80070490): Windows has no default speakers right now (headset
+            # just disconnected, or only a microphone is plugged in), so there is nothing to quiet.
+            if not self._no_output_noted:
+                logger.info(f'Nothing to quiet while dictating: no speakers are active ({e})')
+                self._no_output_noted = True
+            return
+        self._no_output_noted = False
+        for session in sessions:
             try:
                 if session.ProcessId in (0, own):
                     continue

@@ -41,9 +41,10 @@ def before_typing() -> None:
         now = win32gui.GetForegroundWindow()
         now_pid = win32process.GetWindowThreadProcessId(now)[1] if now else 0
         action = decide(target, now, now_pid, os.getpid())
-        if action == 'ok':
-            return
         name = _target.get('process_name') or _target.get('title') or 'the target window'
+        if action == 'ok':
+            logger.info(f"Typing into {name}")       # the time it was sent, to compare with when it showed up
+            return
         if action == 'restore':
             win32gui.SetForegroundWindow(target)
             landed = win32gui.GetForegroundWindow() == target

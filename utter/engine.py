@@ -42,6 +42,38 @@ def _port_open(host: str, port: int, timeout: float = 0.3) -> bool:
         return False
 
 
+def _listening_here(port: int) -> bool:
+    """Whether something on this PC listens on `port`, read from Windows' socket table (~3 ms).
+    Connecting instead made the speech server log a failed-handshake traceback per check, and the
+    window checks every second."""
+    import psutil
+    try:
+        return any(c.laddr and c.laddr.port == port and c.status == psutil.CONN_LISTEN
+                   for c in psutil.net_connections('tcp'))
+    except psutil.Error:
+        return _port_open('127.0.0.1', port)
+
+
+_remote_checks: dict = {}
+_REMOTE_CHECK_SECONDS = 10
+
+
+def _speech_server_answers(host: str, port: int, timeout: float = 0.8) -> bool:
+    """Another PC's speech server, by a real websocket handshake (no traceback in its log),
+    at most once per _REMOTE_CHECK_SECONDS."""
+    cached = _remote_checks.get((host, port))
+    if cached and time.monotonic() - cached[0] < _REMOTE_CHECK_SECONDS:
+        return cached[1]
+    try:
+        from websockets.sync.client import connect
+        with connect(f'ws://{host}:{port}', subprotocols=['binary'], open_timeout=timeout):
+            answers = True
+    except Exception:
+        answers = False
+    _remote_checks[(host, port)] = (time.monotonic(), answers)
+    return answers
+
+
 def _pid_alive(pid) -> bool:
     try:
         import psutil
@@ -64,7 +96,7 @@ def server_status() -> dict:
             'installed': False,
             'remote': True,
             'host': addr if re.fullmatch(r'[\d.]+', addr) else addr.split('.')[0],  # desktop.your-tailnet.ts.net -> desktop
-            'listening': _port_open(addr, port, timeout=0.8),
+            'listening': _speech_server_answers(addr, port),
             'address': f'{addr}:{port}',
             'model': None,
         }
@@ -75,7 +107,8 @@ def server_status() -> dict:
     return {
         'installed': True,
         'remote': False,
-        'listening': _port_open('127.0.0.1' if addr == '0.0.0.0' else addr, port),
+        'listening': (_listening_here(port) if addr in ('0.0.0.0', *_LOCAL_HOSTS)
+                      else _speech_server_answers(addr, port)),
         'address': f'{addr}:{port}',
         'model': MODEL_NAMES.get(model, model or 'unknown'),
     }
@@ -155,13 +188,30 @@ def start_engine():
     _run_script('start-client.ps1' if is_remote() else 'start-dictation.ps1')
 
 
+def wait_until_idle(timeout: float = 60, poll: float = 0.5) -> bool:
+    """Wait while a dictation is being recorded, then a moment for it to be typed.
+    A restart in the middle of a recording lost it. False if still recording at timeout."""
+    deadline = time.monotonic() + timeout
+    was_recording = False
+    while client_status().get('recording'):
+        was_recording = True
+        if time.monotonic() > deadline:
+            return False
+        time.sleep(poll)
+    if was_recording:
+        time.sleep(3)                        # recognition, polish and typing after the key is released
+    return True
+
+
 def stop_engine():
+    wait_until_idle()
     _run_script('stop-dictation.ps1', wait=True)
 
 
 def restart_client():
     """Stop only the dictation client and start it again (applies shortcut changes)."""
     import psutil
+    wait_until_idle()
     for process in _client_processes():
         try:
             process.kill()

@@ -99,6 +99,45 @@ class WatcherStabilityTests(unittest.TestCase):
         self.assertEqual(self._poll_all([fixed, fixed, '']), [('bright loop', 'Brightloop')])
 
 
+class LandingTests(unittest.TestCase):
+    """A busy app sometimes shows a dictation only with the next one; the log says how late."""
+
+    def _begin(self, reads, waiting=False):
+        import queue
+        from unittest import mock
+        from util.client.learn import edit_watcher
+        reads = iter(reads)
+        reader = type('Reader', (), {'focused': lambda self: 'field', 'is_password': lambda self, e: False,
+                                     'text': lambda self, e: next(reads)})()
+        watcher = edit_watcher.EditWatcher.__new__(edit_watcher.EditWatcher)
+        watcher._queue = queue.Queue()
+        if waiting:
+            watcher._queue.put(('observe', 'next', 'notepad.exe'))
+        with mock.patch.object(edit_watcher.time, 'sleep'), mock.patch.object(edit_watcher, 'logger') as log:
+            obs = watcher._begin(reader, 'hello there', 'chrome.exe')
+        return obs, [c.args[0] for c in log.info.call_args_list]
+
+    def test_text_that_lands_late_is_logged_with_the_delay(self):
+        obs, logged = self._begin([''] * 9 + ['hello there'])
+        self.assertIsNotNone(obs)
+        self.assertEqual(logged, ['Dictated text appeared in chrome.exe only 5.0 s after typing'])
+
+    def test_text_that_lands_in_time_is_not_logged(self):
+        obs, logged = self._begin(['', 'hello there'])
+        self.assertIsNotNone(obs)
+        self.assertEqual(logged, [])
+
+    def test_text_that_never_lands_is_logged_with_what_the_field_holds(self):
+        obs, logged = self._begin(['draft'] * 30)
+        self.assertIsNone(obs)
+        self.assertIn("15.0 s after typing (field has 5 characters, ending 'draft')", logged[0])
+
+    def test_the_next_dictation_cuts_the_wait_short(self):
+        obs, logged = self._begin(['draft'] * 30, waiting=True)
+        self.assertIsNone(obs)
+        self.assertIn('3.0 s after typing', logged[0])
+
+
 class PlanTests(unittest.TestCase):
     def test_adds_word_and_rule_when_fuzzy_match_would_miss(self):
         result = plan('bright loop', 'Brightloop', set(), lambda heard, word: False)
@@ -110,7 +149,7 @@ class PlanTests(unittest.TestCase):
 
 
 class LearnTests(unittest.TestCase):
-    def test_learns_word_rule_and_logs_once(self):
+    def test_learns_word_but_does_not_make_an_ambiguous_name_global(self):
         import sqlite3
         from util.client.learn.edit_watcher import learn
         with tempfile.TemporaryDirectory() as tmp:
@@ -122,12 +161,12 @@ class LearnTests(unittest.TestCase):
             again = learn([('bright loop', 'Brightloop')], root=root)
             p = files.paths(root)
             # "bright loop" has the same letters as Brightloop, so the fuzzy matcher
-            # handles it and only the word is needed. "Otto" scores far below the
-            # threshold, so the known word gets an exact replacement instead.
+            # handles it and only the word is needed. "Otto" is also a real name,
+            # so one correction must not turn every mention into Utter.
             self.assertEqual(files.read_words(p['learned_words']), ['Brightloop'])
-            self.assertEqual([r['heard'] for r in files.read_rules(p['learned_rules'])], ['Otto'])
+            self.assertEqual(files.read_rules(p['learned_rules']), [])
             self.assertEqual(again, [])
-            self.assertEqual(shown, [['Brightloop', 'Utter']])
+            self.assertEqual(shown, [['Brightloop']])
             self.assertNotIn(('word', 'Otto', 'Utter'), added)
             db = sqlite3.connect(root / 'transcripts' / 'transcripts.sqlite3')
             self.assertEqual(db.execute('SELECT count(*) FROM learned_words').fetchone()[0], len(added))

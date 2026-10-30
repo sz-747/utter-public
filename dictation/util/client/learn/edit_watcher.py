@@ -19,6 +19,8 @@ from .edits import find_corrections, normalize_newlines, plan
 
 _POLL_SECONDS = 1.5
 _WATCH_SECONDS = 90
+_PROMPT_CHECKS = 6       # 3 s: text that is not there by now has landed late, or not at all
+_LANDING_CHECKS = 30     # keep looking for 15 s, unless the next dictation comes first
 # Terminals show a screen buffer, not an editable field; password managers are private.
 _SKIP_PROCESSES = {
     'windowsterminal.exe', 'cmd.exe', 'powershell.exe', 'pwsh.exe', 'conhost.exe',
@@ -120,9 +122,14 @@ class EditWatcher:
 
     def _begin(self, reader, inserted, process):
         inserted = normalize_newlines(inserted)
-        # Typed text can take a moment to land in the target app.
-        for _ in range(6):
+        # Typed text can take a moment to land in the target app. A busy app sometimes shows a
+        # dictation only with the next one, so keep looking and log how late it was.
+        text, looked = '', 0
+        for check in range(1, _LANDING_CHECKS + 1):
+            if check > _PROMPT_CHECKS and not self._queue.empty():
+                break                                   # the next dictation is waiting
             time.sleep(0.5)
+            looked = check
             element = reader.focused()
             if element is None or reader.is_password(element):
                 return None
@@ -132,10 +139,13 @@ class EditWatcher:
             text = normalize_newlines(text)
             start = text.rfind(inserted)
             if start >= 0:
+                if check > _PROMPT_CHECKS:
+                    logger.info(f'Dictated text appeared in {process or "the app"} only {check * 0.5:.1f} s after typing')
                 logger.debug(f'Auto-learn watching {process or "field"} for edits')
                 return _Observation(element, text, start, inserted, process)
         # Info, not debug: this is the trace of a dictation that was typed but never landed
-        logger.info(f'Dictated text not found in the focused field of {process or "the app"} 3 s after typing')
+        logger.info(f'Dictated text not found in the focused field of {process or "the app"} '
+                    f'{looked * 0.5:.1f} s after typing (field has {len(text)} characters, ending {text[-40:]!r})')
         return None
 
     def _poll(self, reader, obs) -> bool:

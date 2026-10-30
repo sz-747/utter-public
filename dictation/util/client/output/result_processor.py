@@ -56,6 +56,7 @@ class ResultProcessor:
         self.state = state
         self._ws_manager = WebSocketManager(state)
         self._hotword_manager = get_hotword_manager()
+        self._delivered = False      # whether the dictation being processed has reached the user
         self._text_output = TextOutput()
         self._exit_event = asyncio.Event()
         self._loop = asyncio.get_running_loop()  # keep the event loop for thread-safe calls
@@ -163,20 +164,22 @@ class ResultProcessor:
                 if recv_task in done:
                     try:
                         message = recv_task.result()
-                        if lifecycle.is_shutting_down:
-                            logger.info("Exit requested before the message was handled")
-                            break
+                    except ConnectionClosedError:
+                        logger.warning("WebSocket connection closed")
+                        break
+                    if lifecycle.is_shutting_down:
+                        logger.info("Exit requested before the message was handled")
+                        break
+                    try:
                         logger.debug("Handling message")
                         await self._handle_message(message)
                         logger.debug("Message handled")
                     except asyncio.CancelledError:
                         raise
-                    except ConnectionClosedError:
-                        logger.warning("WebSocket connection closed")
-                        break
                     except Exception as e:
+                        # One dictation failing must not drop the connection: this used to raise,
+                        # and the next recording was lost too ("server not connected")
                         logger.error(f"Error handling message: {e}", exc_info=True)
-                        raise
 
         except ConnectionClosedError:
             console.print('[red]Disconnected\n')
@@ -201,7 +204,7 @@ class ResultProcessor:
             return
 
         message = json.loads(message)
-        save_recognition(message)
+        self._archive(save_recognition, message)
 
         # The text field: the joined result used for dictation
         text = message['text']
@@ -219,8 +222,14 @@ class ResultProcessor:
         if not message['is_final']:
             return
 
+        self._delivered = False
         try:
             await self._process_final(message, text, original_text, delay)
+        except Exception as e:
+            logger.error(f"Error handling the final result: {e}", exc_info=True)
+            if not self._delivered and (text or '').strip():
+                # Not typed yet: clipboard and notice, as when there is nowhere to type; the archive has the text
+                self._keep_unsent(TextOutput.strip_punc(text), 'something went wrong before it was typed')
         finally:
             # Whatever happened (typed, empty result, error), hide the "processing" pill
             self._hide_status()
@@ -259,7 +268,7 @@ class ResultProcessor:
             fixes += [{'kind': 'rule', 'from': old, 'to': new} for old, new in rule_log]
 
         self.state.last_recognition_text = text
-        save_output(message, text)
+        self._archive(save_output, message, text)
 
         console.print(f'    Recognition delay: {delay:.2f}s')
 
@@ -347,6 +356,7 @@ class ResultProcessor:
                 logger.debug(f"Text length {len(text)} < {Config.llm_min_chars}; skipping AI polish")
             await self._text_output.output(sep + text, paste=paste)
             get_state().set_output_text(text)
+        self._delivered = True       # typed, polished and typed, or kept on the clipboard; later steps only record
 
         if llm_result and llm_result.processed:
             from util.text_metrics import changed_words
@@ -381,7 +391,7 @@ class ResultProcessor:
 
             diary_writer = DiaryWriter()
             diary_writer.write(text, message['time_start'], file_audio)
-            save_output(message, llm_result.result if llm_result and llm_result.processed else text, file_audio)
+            self._archive(save_output, message, llm_result.result if llm_result and llm_result.processed else text, file_audio)
             logger.debug("Diary written")
 
         # Show and save the AI polish result
@@ -403,6 +413,16 @@ class ResultProcessor:
         console.line()
 
     @staticmethod
+    def _archive(save, message, *args) -> None:
+        """Write to the dictation archive; a failure (another program holding the database: "database
+        is locked") is logged and the text is typed anyway. Once, an archive error kept a whole
+        dictation from being typed and dropped the server connection."""
+        try:
+            save(message, *args)
+        except Exception as e:
+            logger.warning(f"Archive write failed; typing anyway ({message.get('task_id')}): {e} - {message.get('text', '')[:200]}")
+
+    @staticmethod
     def _save_details(message, window_info, fixes, delivery='typed') -> None:
         """Record the target app, the fixes and whether it was typed (for Insights); never blocks output."""
         try:
@@ -415,8 +435,9 @@ class ResultProcessor:
         """Nowhere to type: put it on the clipboard and say it was saved in Utter."""
         get_state().set_output_text(text)
         try:
-            from util.client.clipboard import keep_output_clipboard
-            keep_output_clipboard(text)
+            # Always, even with "keep the result on the clipboard" off: nothing was typed, so this is the copy
+            from util.client.clipboard import safe_copy
+            safe_copy(text)
         except Exception as e:
             logger.debug(f"Copying to the clipboard failed: {e}")
         console.print(f'    Not typed: [yellow]{reason}[/], saved in Utter')

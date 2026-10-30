@@ -43,11 +43,31 @@ class ConfigValueTests(unittest.TestCase):
             (Path(tmp) / 'config_server.py').write_text("addr = '0.0.0.0'\nport = '6016'\n", encoding='utf-8')
             with mock.patch.object(engine, 'RUNTIME', Path(tmp)), \
                  mock.patch.object(engine, 'is_remote', return_value=False), \
-                 mock.patch.object(engine, '_port_open', return_value=True) as probe:
+                 mock.patch.object(engine, '_listening_here', return_value=True) as probe, \
+                 mock.patch.object(engine, '_port_open') as connect:
                 status = engine.server_status()
-        # 0.0.0.0 is where a server listens, not an address Windows can connect to.
-        probe.assert_called_once_with('127.0.0.1', 6016)
+        # Read from the socket table: a connection would log a failed-handshake traceback each second.
+        probe.assert_called_once_with(6016)
+        connect.assert_not_called()
         self.assertEqual((status['listening'], status['address']), (True, '0.0.0.0:6016'))
+
+    def test_the_local_check_sees_a_listening_port_without_connecting(self):
+        import socket
+        with socket.socket() as server:
+            server.bind(('127.0.0.1', 0))
+            port = server.getsockname()[1]
+            self.assertFalse(engine._listening_here(port))
+            server.listen()
+            self.assertTrue(engine._listening_here(port))
+
+    def test_a_remote_server_is_checked_by_handshake_at_most_every_few_seconds(self):
+        engine._remote_checks.clear()
+        with mock.patch('websockets.sync.client.connect') as connect:
+            self.assertTrue(engine._speech_server_answers('desktop', 6016))
+            self.assertTrue(engine._speech_server_answers('desktop', 6016))
+        connect.assert_called_once()
+        self.assertEqual(connect.call_args.kwargs['subprotocols'], ['binary'])
+        engine._remote_checks.clear()
 
     def test_client_only_install_uses_the_clients_server_address(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -55,11 +75,11 @@ class ConfigValueTests(unittest.TestCase):
                 "    addr = 'desktop.example-tailnet.ts.net'\n    port = '6016'\n", encoding='utf-8')
             with mock.patch.object(engine, 'ROOT', Path(tmp)), \
                  mock.patch.object(engine, 'SERVER_EXE', Path(tmp) / 'start_server.exe'), \
-                 mock.patch.object(engine, '_port_open', return_value=False) as probe, \
+                 mock.patch.object(engine, '_speech_server_answers', return_value=False) as probe, \
                  mock.patch.object(engine, '_run_script') as run:
                 status = engine.server_status()
                 engine.start_engine()
-        probe.assert_called_once_with('desktop.example-tailnet.ts.net', 6016, timeout=0.8)
+        probe.assert_called_once_with('desktop.example-tailnet.ts.net', 6016)
         self.assertEqual((status['remote'], status['host'], status['listening']), (True, 'desktop', False))
         run.assert_called_once_with('start-client.ps1')   # no local server to start
 
@@ -86,6 +106,21 @@ class ClientStatusTests(unittest.TestCase):
     def test_stale_or_stopped_status_is_not_running(self):
         self.assertFalse(self._status({'pid': os.getpid(), 'updated_at': time.time() - 60})['running'])
         self.assertFalse(self._status({'pid': os.getpid(), 'updated_at': time.time(), 'stopped': True})['running'])
+
+    def test_stopping_waits_for_a_dictation_in_progress(self):
+        # A restart during a recording lost it.
+        states = iter([{'recording': True}, {'recording': True}, {'recording': False}])
+        with mock.patch.object(engine, 'client_status', side_effect=lambda: next(states)), \
+                mock.patch.object(engine.time, 'sleep') as sleep, \
+                mock.patch.object(engine, '_run_script') as run:
+            engine.stop_engine()
+        run.assert_called_once_with('stop-dictation.ps1', wait=True)
+        self.assertEqual(sleep.call_args_list[-1], mock.call(3))       # time to type what was said
+
+    def test_waiting_gives_up_on_a_stuck_recording(self):
+        with mock.patch.object(engine, 'client_status', return_value={'recording': True}), \
+                mock.patch.object(engine.time, 'sleep'):
+            self.assertFalse(engine.wait_until_idle(timeout=0))
 
     def test_client_without_status_is_reported_as_unreported(self):
         status = self._status(None, processes=[object()])

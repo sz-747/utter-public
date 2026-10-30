@@ -192,6 +192,56 @@ h1.page-title { font: 600 28px/1.25 var(--display); letter-spacing: -.01em; marg
 .dict-toggle-action svg { width: 15px; height: 15px; transition: transform .2s; }
 .dict-toggle.open .dict-toggle-action svg { transform: rotate(90deg); }
 .status-strip .btn { padding: 6px 12px; }
+/* Utter improvements: what the daily review checked, found, did and verified. */
+.loop { margin-top: 18px; }
+.loop-card {
+  container-type: inline-size; background: var(--card); border: 1px solid var(--line); border-radius: 16px;
+  padding: 18px 22px 8px; box-shadow: var(--shadow); min-width: 0;
+}
+.loop-head { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
+.loop-heading { font-family: var(--serif); font-weight: 400; font-size: 21px; letter-spacing: -.01em; margin: 0 4px 0 0; }
+.loop-when { margin-left: auto; font-size: 12.5px; color: var(--muted); }
+.loop-spinner { width: 10px; height: 10px; border-color: color-mix(in srgb, currentColor 30%, transparent); border-top-color: currentColor; }
+.loop-summary { margin: 4px 0 0; color: var(--muted); font-size: 13.5px; max-width: 640px; overflow-wrap: anywhere; }
+.loop-problem {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 14px;
+  margin-top: 12px; padding: 9px 12px; border-radius: 10px; background: var(--warn-soft); color: var(--warn); font-size: 13px;
+}
+.loop-problem span { min-width: 0; overflow-wrap: anywhere; }
+.loop-problem .btn { flex: none; }
+.loop-rows { margin: 12px 0 0; }
+.loop-row { display: grid; grid-template-columns: 112px minmax(0, 1fr); gap: 4px 16px; padding: 9px 0; border-top: 1px solid var(--line); font-size: 13.5px; }
+.loop-row dt { font-size: 11.5px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); padding-top: 2px; }
+.loop-row dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
+.loop-history { border-top: 1px solid var(--line); }
+.loop-history summary {
+  display: flex; justify-content: space-between; align-items: center; gap: 12px; list-style: none;
+  padding: 11px 0; cursor: pointer; color: var(--muted); font-weight: 600; font-size: 13px; border-radius: 6px;
+}
+.loop-history summary::-webkit-details-marker { display: none; }
+.loop-history summary:hover { color: var(--text); }
+.loop-toggle svg { width: 15px; height: 15px; display: block; transition: transform .2s; }
+.loop-history[open] .loop-toggle svg { transform: rotate(90deg); }
+.loop-card summary:focus-visible, .loop-card .btn:focus-visible { outline: 2px solid var(--accent-2); outline-offset: 2px; }
+.loop-list { list-style: none; margin: 0; padding: 0 0 8px; }
+.loop-item { padding: 10px 0; border-top: 1px solid var(--line); min-width: 0; }
+.loop-item:first-child { border-top: 0; padding-top: 2px; }
+.loop-item-head { display: flex; flex-wrap: wrap; gap: 4px 10px; font-size: 12.5px; color: var(--muted); margin-bottom: 4px; }
+.loop-item-label { font-weight: 600; color: var(--text); }
+.loop-item-rows { margin: 0; display: grid; gap: 2px; font-size: 13px; }
+.loop-item-rows div { display: grid; grid-template-columns: 96px minmax(0, 1fr); gap: 12px; }
+.loop-item-rows dt { color: var(--muted); }
+.loop-item-rows dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
+.loop-empty { padding: 0 0 12px; }
+@container (max-width: 520px) {
+  .loop-card { padding: 16px 16px 6px; }
+  .loop-when { margin-left: 0; flex-basis: 100%; }
+  .loop-row, .loop-item-rows div { grid-template-columns: minmax(0, 1fr); gap: 2px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .loop-spinner { animation: none; }
+  .loop-toggle svg { transition: none; }
+}
 .warn-text { color: var(--warn); font-weight: 600; }
 button.link { border: 0; background: none; padding: 0; color: var(--accent); font-weight: 600; font-size: inherit; }
 button.link:hover { text-decoration: underline; }

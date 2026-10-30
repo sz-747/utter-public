@@ -28,6 +28,31 @@ class FindCallTests(unittest.TestCase):
         self.assertEqual(meeting_detect.find_call({'zoom.exe'}, [])['app'], 'Zoom')
         self.assertEqual(meeting_detect.find_call({'MSTeams_8wekyb3d8bbwe'}, [])['app'], 'Microsoft Teams')
 
+    def test_a_meet_tab_behind_another_tab(self):
+        tabs = [('msedge.exe', 'YouTube'), ('msedge.exe', 'Meet - abc-defg-hij - Camera or microphone recording')]
+        windows = [('msedge.exe', 'YouTube - Personal - Microsoft Edge')]
+        self.assertEqual(meeting_detect.find_call({'msedge.exe'}, windows, tabs)['key'], 'meet:abc-defg-hij')  # same key as the title
+        self.assertIsNone(meeting_detect.find_call({'pythonw.exe'}, windows, tabs))                            # the browser is not on the mic
+        self.assertIsNone(meeting_detect.find_call({'msedge.exe'}, windows, [('msedge.exe', 'Google Meet')]))  # Meet's home page
+
+    def test_tabs_are_read_only_while_a_browser_uses_the_microphone(self):
+        with mock.patch.object(meeting_detect, 'apps_using_microphone', return_value={'pythonw.exe': 1}), \
+                mock.patch.object(meeting_detect, 'visible_windows', return_value=[]), \
+                mock.patch.object(meeting_detect, 'browser_tabs') as tabs:
+            self.assertIsNone(meeting_detect.current_call())
+        tabs.assert_not_called()
+
+    def test_telegram_counts_only_after_a_voice_message_would_have_ended(self):
+        started_at = 1_800_000_000
+        start = (started_at + meeting_detect._FILETIME_UNIX_START) * 10_000_000
+        mic = {'telegram.exe': start, 'zoom.exe': start}
+        self.assertEqual(meeting_detect.without_short_use(mic, started_at + 3), {'zoom.exe'})
+        self.assertEqual(meeting_detect.without_short_use(mic, started_at + 10), {'telegram.exe', 'zoom.exe'})
+        self.assertEqual(meeting_detect.find_call({'telegram.exe'}, [])['app'], 'Telegram')
+        packaged = 'TelegramMessengerLLP.TelegramDesktop_t4vj0pshhgkwm'
+        self.assertEqual(meeting_detect.find_call({packaged}, [])['app'], 'Telegram')
+        self.assertEqual(meeting_detect.without_short_use({packaged: start}, started_at + 3), set())
+
 
 class ZoomTests(unittest.TestCase):
     def test_zoom_is_clamped_remembered_and_applied(self):
@@ -73,6 +98,25 @@ class PopupTests(unittest.TestCase):
         self.api.dismiss_call()
         self.assertFalse(self.api._check_call(self.call))
         self.assertEqual(self.shown, [True, False])
+
+    def test_a_closed_telegram_offer_does_not_silence_the_next_call(self):
+        call = meeting_detect.find_call({'telegram.exe'}, [])
+        self.api._check_call(call)
+        self.api.dismiss_call()
+        self.assertFalse(self.api._check_call(call))                     # the same call
+        with mock.patch.object(api_module.time, 'time', return_value=time.time() + api_module.CALL_GONE_SECONDS + 1):
+            self.api._check_call(False)                                  # it ended
+        self.assertTrue(self.api._check_call(call))                      # the next one is offered
+
+    def test_a_telegram_call_does_not_take_the_name_of_an_event_happening_now(self):
+        now = datetime.now().astimezone()
+        event = {'title': 'Week-long hackathon', 'start': (now - timedelta(days=1)).isoformat(),
+                 'end': (now + timedelta(days=1)).isoformat(), 'join_url': '', 'attendees': ['Someone Else']}
+        self.calendar.stop()
+        self.calendar = mock.patch.object(Api, 'get_today_meetings', return_value={'meetings': [event]})
+        self.calendar.start()
+        self.api._check_call(meeting_detect.find_call({'telegram.exe'}, []))
+        self.assertEqual((self.api._call['title'], self.api._call['attendees']), ('Telegram', []))
 
     def test_turned_off_in_settings(self):
         self.api.set_notetaker_pref('call_popup', 'off')

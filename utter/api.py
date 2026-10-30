@@ -18,7 +18,7 @@ from pathlib import Path
 
 from config_client import ClientConfig
 from util import app_settings, dictionary_files
-from . import (__version__, agents, codex, dictation, engine, google_calendar, lmstudio, local_state, meeting,
+from . import (__version__, agents, codex, dictation, engine, google_calendar, improvements, lmstudio, local_state, meeting,
                meeting_detect, notes, stats, summary)
 
 ROOT = dictation.ROOT                             # the dictation client's folder
@@ -88,6 +88,11 @@ class Api:
         return values
 
     # -- pages -----------------------------------------------------------
+
+    @_safe
+    def get_improvements(self):
+        """Recent review outcomes, without raw dictations or evidence payloads."""
+        return improvements.status(self._root or ROOT)
 
     @_safe
     def get_status(self):
@@ -408,6 +413,7 @@ class Api:
             if not self._call or self._call['key'] != call['key']:
                 self._call = self._name_call(call)
         elif self._call and now - self._call_seen > CALL_GONE_SECONDS:
+            self._dismissed_calls.discard(self._call['key'])
             self._call = None
         session = self._session
         from_popup = bool(session and getattr(session, 'call_key', None))
@@ -432,7 +438,7 @@ class Api:
             same_meet = call.get('code') and call['code'] in link
             happening = (datetime.fromisoformat(m['start']) <= now + timedelta(minutes=10)
                          and datetime.fromisoformat(m['end']) >= now)
-            same_app = happening and call['app'] != 'Google Meet' and (
+            same_app = happening and call['app'] in ('Zoom', 'Microsoft Teams') and (
                 ('zoom.us' in link) == (call['app'] == 'Zoom'))
             if same_meet or same_app:
                 return {**call, 'title': m['title'], 'attendees': m.get('attendees') or []}

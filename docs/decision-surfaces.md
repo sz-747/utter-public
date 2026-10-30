@@ -59,11 +59,16 @@ Product choices Utter has made. Reopen one only with new evidence or a changed s
 ## DS-010 Offer to take notes when a call starts (call detection, not the calendar)
 - **Question:** When should Utter offer to start the notetaker without being opened?
 - **Why it matters:** A popup that fires on calendar times alone misses unscheduled calls and nags for events with no call; one that fires on any microphone use would interrupt dictation.
-- **Current behavior:** Every 3 s Utter checks which apps are using the microphone (Windows privacy consent store) and the window titles. A browser using the mic with a window titled "Meet - ..." is a Google Meet; Zoom or Teams using the mic is a call. A small always-on-top window (bottom-right, draggable) offers "Start Notetaker"; X dismisses it for that call. If today's calendar has the same Meet code (or a Zoom/Teams event happening now), the note gets that event's title and invited names. While recording it shows a timer with Stop and Open. It goes away 20 s after the call disappears. Settings > Notetaker can turn it off. A calendar-time reminder was not built.
-- **Reopen trigger:** A reminder before calendar events, Meet tabs behind other tabs detected, or the notetaker stopping by itself when the call ends.
+- **Current behavior:** Every 3 s Utter checks which apps are using the microphone (Windows privacy consent store) and their window titles. While a browser uses the mic, UI Automation can also read its tab names, so a Meet tab behind another tab can be found. Zoom and Teams using the mic count as calls. Telegram counts after 10 s of mic use, which avoids most voice messages; a longer voice message can still produce an offer. A small always-on-top window offers "Start Notetaker"; X dismisses it until that call ends. Calendar titles are matched to Meet, Zoom and Teams, but not Telegram. Settings > Notetaker can turn the offer off.
+- **Reopen trigger:** A reminder before calendar events, long Telegram voice messages causing offers, or the notetaker stopping by itself when the call ends.
 
 ## DS-011 English only
 - **Question:** Which languages does dictation support?
 - **Why it matters:** The upstream client carries Chinese-specific processing (pinyin restoration, simplified/traditional conversion, Chinese numbers and punctuation); each language needs its own tuning and tests.
 - **Current behavior:** English only. The speech model is told the speaker speaks English, AI polish and the AI reviewer are prompted for English, and the dictionary matcher works on English letters and digits. There is no language setting.
 - **Reopen trigger:** Someone tunes and tests another language end to end.
+
+## DS-012 Show improvement activity with its verification limits
+- **Question:** How can the user see what a daily review found and whether a fix helped?
+- **Current behavior:** Home reads bounded, sanitized review receipts from the bundled client and shows the last finding, action, verification limit and up to eight prior entries. A missing report after a completed review is shown as pending. Passing tests or recorded code changes do not claim improved real use. This public build does not configure an automatic review schedule.
+- **Reopen trigger:** A public review runner is configured, or real-use outcome data becomes available for verification.

@@ -30,6 +30,23 @@ STATUS_FIELDS = {'pid': int, 'updated_at': float, 'started_at': float, 'stopped'
                  'shortcuts': list, 'llm_enabled': bool, 'review': dict}
 
 
+class LearningReceiptFormatTests(unittest.TestCase):
+    def test_client_owner_provides_home_view_without_raw_receipt(self):
+        from datetime import datetime, timezone
+        from util import learning_status
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / 'last-run.json').write_text(json.dumps({
+                'status': 'completed', 'finished_at': datetime.now(timezone.utc).isoformat(),
+                'analysis': {'status': 'no_change', 'problem': 'No justified fix.',
+                             'tests': {'exit_code': 0}}, 'raw_text': 'private speech'}), encoding='utf-8')
+            view = learning_status.snapshot(root)
+            for field in ('state', 'label', 'finding', 'action', 'verification', 'schedule'):
+                self.assertIsInstance(view[field], str)
+            self.assertIsInstance(view['items'], list)
+            self.assertNotIn('private speech', str(view))
+
+
 class SettingsFormatTests(unittest.TestCase):
     def setUp(self):
         from util import app_settings

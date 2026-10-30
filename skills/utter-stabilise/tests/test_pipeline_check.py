@@ -25,6 +25,15 @@ class TextTests(unittest.TestCase):
     def test_the_bundled_sample_exists(self):
         self.assertTrue(pc.SAMPLE.is_file())
 
+    def test_sound_alike_verdict_checks_both_words(self):
+        self.assertEqual(pc.verdict('Ask Codex today', 'codecs', 'Codex'), 'right')
+        self.assertEqual(pc.verdict('Ask codecs today', 'codecs', 'Codex'), 'wrong')
+        self.assertEqual(pc.verdict('Ask someone today', 'codecs', 'Codex'), 'other')
+
+    def test_only_live_distinct_corrections_are_checked(self):
+        pairs = [('codecs', 'Codex'), ('codecs', 'Codex'), ('scale', 'Scala'), ('word', 'word')]
+        self.assertEqual(pc.live_pairs(pairs, {'Codex'}, []), [('codecs', 'Codex')])
+
 
 FOREVER = '2319-02-09T10:56:52.774579607Z'      # what Ollama reports for keep_alive -1
 PINNED = [{'name': 'other-job:4b', 'size_vram': 5722928578, 'expires_at': FOREVER},

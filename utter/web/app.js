@@ -89,14 +89,138 @@ function liveConfig() {
 
 // ---------- page ----------
 async function load() {
-  const [home, insights, dictionary, recent] = await Promise.all(
-    [call('get_home'), call('get_insights'), call('get_dictionary'), call('get_recent', 5)]);
+  const [home, insights, dictionary, recent, improvements] = await Promise.all(
+    [call('get_home'), call('get_insights'), call('get_dictionary'), call('get_recent', 5),
+      state.page === 'home' ? call('get_improvements') : null]);
   state.home = home;
   state.insights = insights;
   state.dictionary = dictionary;
   state.recent = recent.items || [];
+  if (improvements) applyImprovements(improvements);
   if (home.client) state.status = { client: home.client, server: home.server, llm: home.llm };
 }
+
+// ---------- Utter improvements: the latest improvement activity ----------
+// The backend owns every label and sentence; this card only lays them out. A failed fetch keeps
+// the last good activity on screen, marked as not up to date.
+const IMPROVEMENT_CHIPS = { ok: 'on', running: 'on', failed: 'warn', overdue: 'warn', disabled: 'off', empty: 'off', unavailable: 'off' };
+const IMPROVEMENT_HISTORY = 8;
+let improvementsBusy = false;
+let lastImprovements = '';
+let lastNotification = null;  // the backend notification id already seen, so it is shown at most once
+
+// Only the background refresh passes notify; page load, navigation and focus never show a toast.
+function applyImprovements(result, notify = false) {
+  const valid = result && typeof result.state === 'string' && !(result.state === 'unavailable' && state.improvements);
+  if (valid) {
+    state.improvements = result;
+    state.improvementsFailed = false;
+    state.improvementsStale = false;
+    const note = result.notification;
+    if (note && typeof note.id === 'string' && note.id) {
+      if (notify && note.id !== lastNotification && typeof note.text === 'string' && note.text) toast(note.text);
+      lastNotification = note.id;
+    }
+  } else {
+    state.improvementsFailed = true;
+    state.improvementsStale = !!state.improvements;
+  }
+}
+
+function fullTime(iso) {
+  const d = iso ? new Date(iso) : null;
+  return d && !isNaN(d) ? d.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' }) : '';
+}
+
+// A relative time on screen, with the absolute one in the markup for screen readers and hover.
+function timeTag(iso, text) {
+  const full = fullTime(iso);
+  if (!full) return '';
+  const shown = text || full;
+  return `<time datetime="${esc(iso)}" title="${esc(full)}"${shown !== full ? ` aria-label="${esc(full)}"` : ''}>${esc(shown)}</time>`;
+}
+
+function improvementsView() {
+  const d = state.improvements;
+  const retry = `<button class="btn small" data-improvements="retry" data-focus="retry"${improvementsBusy ? ' aria-busy="true"' : ''}>${icon('refresh')}${improvementsBusy ? 'Checking…' : 'Try again'}</button>`;
+  const head = (chips, when) => `
+    <div class="loop-head">
+      <h2 class="loop-heading">Utter improvements</h2>
+      ${chips}
+      ${when ? `<span class="loop-when">${when}</span>` : ''}
+    </div>`;
+  if (!d) {
+    return state.improvementsFailed
+      ? `<div class="loop-card">${head('<span class="chip warn">Not available</span>', '')}
+          <div class="loop-problem"><span>Utter couldn't read its latest improvement activity. Dictation is not affected.</span>${retry}</div></div>`
+      : `<div class="loop-card">${head('', '')}<p class="loop-summary">Reading the latest activity…</p></div>`;
+  }
+  const chips = `<span class="chip ${IMPROVEMENT_CHIPS[d.state] || 'off'}">${d.state === 'running' ? '<span class="spinner loop-spinner" aria-hidden="true"></span>' : ''}${esc(d.label || 'Status unknown')}</span>`
+    + (state.improvementsStale ? '<span class="chip warn">Not up to date</span>' : '');
+  const checked = fullTime(d.checked_at);
+  const when = checked ? `Latest activity ${timeTag(d.checked_at, ago(d.checked_at))}` : 'No activity recorded yet';
+  const value = (text) => (text ? esc(text) : '<span class="faint">Nothing reported.</span>');
+  const rows = [
+    ['Last check', checked ? esc(checked) : '<span class="faint">No activity recorded yet.</span>'],
+    ['Findings', value(d.finding)],
+    ['Action', value(d.action)],
+    ['Verification', value(d.verification)],
+  ];
+  let problem = '';
+  if (state.improvementsStale) {
+    problem = `<div class="loop-problem"><span>Couldn't refresh just now. This is the activity from ${checked ? esc(ago(d.checked_at)) : 'earlier'}.</span>${retry}</div>`;
+  } else if (d.error || d.state === 'failed' || d.state === 'unavailable') {
+    problem = `<div class="loop-problem">${d.error ? `<span>${esc(d.error)}</span>` : '<span></span>'}${retry}</div>`;
+  }
+  const items = (d.items || []).slice(0, IMPROVEMENT_HISTORY);
+  const history = items.length
+    ? `<ol class="loop-list">${items.map((item) => `
+        <li class="loop-item">
+          <div class="loop-item-head">${timeTag(item.at) || '<span>Time not recorded</span>'}${item.label ? `<span class="loop-item-label">${esc(item.label)}</span>` : ''}</div>
+          <dl class="loop-item-rows">${[['Findings', item.finding], ['Action', item.action], ['Verification', item.verification]]
+            .filter(([, v]) => v).map(([k, v]) => `<div><dt>${k}</dt><dd>${esc(v)}</dd></div>`).join('')}</dl>
+        </li>`).join('')}</ol>`
+    : '<p class="empty loop-empty">No activity recorded yet.</p>';
+  return `
+    <div class="loop-card">
+      ${head(chips, when)}
+      ${d.schedule ? `<p class="loop-summary">${esc(d.schedule)}</p>` : ''}
+      ${problem}
+      <dl class="loop-rows">${rows.map(([k, v]) => `<div class="loop-row"><dt>${k}</dt><dd>${v}</dd></div>`).join('')}</dl>
+      <details class="loop-history" id="loop-history"${state.improvementsOpen ? ' open' : ''}>
+        <summary data-focus="history"><span>Activity history${items.length ? ` · last ${items.length}` : ''}</span><span class="loop-toggle">${icon('right')}</span></summary>
+        ${history}
+      </details>
+    </div>`;
+}
+
+// Replace the card only when it changed, and keep keyboard focus on the same control.
+function renderImprovements() {
+  const el = $('#improvements');
+  if (!el) return;
+  const html = improvementsView();
+  if (html === lastImprovements) return;
+  const active = document.activeElement;
+  const focusKey = active && el.contains(active) ? active.dataset.focus : null;
+  el.innerHTML = html;
+  lastImprovements = html;
+  if (focusKey) $(`[data-focus="${focusKey}"]`, el)?.focus({ preventScroll: true });
+}
+
+// background: true only from the Home poll, the one place a new notification may be shown.
+async function refreshImprovements({ background = false } = {}) {
+  if (improvementsBusy) return;
+  improvementsBusy = true;
+  renderImprovements();
+  applyImprovements(await call('get_improvements'), background);
+  improvementsBusy = false;
+  renderImprovements();
+}
+
+// The history's open state survives background refreshes.
+document.addEventListener('toggle', (ev) => {
+  if (ev.target.id === 'loop-history') state.improvementsOpen = ev.target.open;
+}, true);
 
 // ---------- recent dictations (recovery) ----------
 const RECENT_ALERT_MINUTES = 30;
@@ -174,6 +298,7 @@ async function renderPage() {
         <div class="hero-copy" id="hero-copy"></div>
         <div class="hero-wave"><canvas id="wave"></canvas></div>
       </section>
+      <section class="loop" id="improvements" aria-label="Utter improvements">${lastImprovements = improvementsView()}</section>
       <section class="recent" id="recent">${recentView()}</section>`;
     lastHero = '';
     refreshHero();
@@ -665,7 +790,7 @@ function settingsBody(s) {
       </div>
       <div class="group-title">Calls</div>
       <div class="group">
-        ${row('Offer to take notes when a call starts', 'A small window appears in the bottom-right corner when you join a Google Meet in your browser, or a Zoom or Teams call. Utter only checks which app is using the microphone and what its windows are called.', `<label class="switch"><input type="checkbox" data-nt-toggle="call_popup" ${nt.call_popup !== 'off' ? 'checked' : ''}><span></span></label>`)}
+        ${row('Offer to take notes when a call starts', 'A small window appears in the bottom-right corner when you join a Google Meet in your browser, or a Zoom, Teams or Telegram call. Utter checks which app is using the microphone and what its windows and browser tabs are called.', `<label class="switch"><input type="checkbox" data-nt-toggle="call_popup" ${nt.call_popup !== 'off' ? 'checked' : ''}><span></span></label>`)}
       </div>
       <div class="group-title">What is recorded</div>
       <div class="group">
@@ -1076,6 +1201,7 @@ async function pollStatus() {
     state.insights = await call('get_insights');
     renderInsights();
   }
+  if (polls % 30 === 0 && state.page === 'home') refreshImprovements({ background: true });
 }
 
 // ---------- events ----------
@@ -1094,6 +1220,7 @@ document.addEventListener('click', (ev) => {
   if (t.dataset.link) return call('open_link', t.dataset.link).then((r) => r.error && toast(r.error));
   if (t.dataset.copyRecent !== undefined) return copyRecent(+t.dataset.copyRecent, t);
   if (t.dataset.codex) return codexAccountAction(t.dataset.codex);
+  if (t.dataset.improvements) return refreshImprovements();
   if (t.id === 'recent-toggle') {
     state.recentOpen = !state.recentOpen;
     return renderRecent();
@@ -1153,6 +1280,7 @@ window.addEventListener('focus', async () => {
   if (state.page === 'notetaker') return;
   await load();
   refreshHero();
+  renderImprovements();
   renderInsights();
   renderDictionary();
 });

@@ -20,6 +20,7 @@ CLIENT_KEYS = {
     'llm_min_chars': int,
     'hot': bool,
     'hot_rule': bool,
+    'dictionary_context': bool,
     'auto_learn': bool,
     'auto_review': bool,
     'paste': bool,

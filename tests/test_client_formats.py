@@ -20,7 +20,7 @@ from utter import dictation, engine, meeting, summary
 UTTER_WRITES = {
     'display_name': 'Alex', 'theme': 'dark', 'start_engine_with_app': True,
     'audio_input_device': 'AirPods Pro', 'llm_enabled': True, 'llm_min_chars': 40, 'hot': True, 'hot_rule': True,
-    'auto_learn': True, 'auto_review': False, 'paste': True, 'copy_output_to_clipboard': False, 'save_audio': True,
+    'dictionary_context': False, 'auto_learn': True, 'auto_review': False, 'paste': True, 'copy_output_to_clipboard': False, 'save_audio': True,
     'recording_status_bar': True, 'dictation_sounds': False, 'mute_while_dictating': True, 'quiet_mode': 'lower',
     'quiet_media_only': True,
 }

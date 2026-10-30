@@ -154,3 +154,9 @@ def remove_rule(path, pattern):
 def all_words(root=None):
     p = paths(root)
     return set(read_words(p['words'])) | set(read_words(p['learned_words']))
+
+
+def ordered_words(root=None):
+    """Your words, then learned ones, each once, in file order."""
+    p = paths(root)
+    return list(dict.fromkeys(read_words(p['words']) + read_words(p['learned_words'])))

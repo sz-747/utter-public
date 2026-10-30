@@ -153,13 +153,16 @@ class SummaryTests(unittest.TestCase):
 
     def test_nebius_uses_ultra_role_and_environment_key(self):
         response = mock.Mock(**{'json.return_value': {'choices': [{'message': {'content': 'notes'}}]}})
+        config = type('C', (), {'extra_options': {'keep_alive': '1h'}})
         with mock.patch.dict('os.environ', {'NEBIUS_API_KEY': 'secret-test-key'}), \
+             mock.patch.object(summary, 'local_config', return_value=config), \
              mock.patch.object(summary.requests, 'post', return_value=response) as post:
             self.assertEqual(summary.ask_nebius('meeting', summary.SCHEMA), 'notes')
         url = post.call_args.args[0]
         body = post.call_args.kwargs['json']
         self.assertEqual(url, 'https://api.tokenfactory.nebius.com/v1/chat/completions')
         self.assertEqual(body['model'], 'nvidia/Nemotron-3-Ultra-550b-a55b')
+        self.assertNotIn('keep_alive', body)
         self.assertEqual(post.call_args.kwargs['headers']['Authorization'], 'Bearer secret-test-key')
 
     def test_nebius_requires_key_without_making_a_request(self):

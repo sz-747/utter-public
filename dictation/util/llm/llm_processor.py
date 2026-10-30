@@ -167,7 +167,21 @@ class LLMProcessor:
 
         # Merge the extra options
         if role_config.extra_options:
-            params.update(role_config.extra_options)
+            extra_options = dict(role_config.extra_options)
+            # keep_alive is an Ollama request option, not an OpenAI-compatible SDK argument.
+            if role_config.provider != 'ollama':
+                extra_options.pop('keep_alive', None)
+            params.update(extra_options)
+
+        # Nemotron 3 Nano defaults to a long reasoning trace. For dictation polish
+        # we need the final cleaned text, so ask Token Factory to disable thinking.
+        if (role_config.provider == 'nebius' and
+                'nemotron-3-nano' in role_config.model.lower()):
+            extra_body = dict(params.get('extra_body') or {})
+            chat_template_kwargs = dict(extra_body.get('chat_template_kwargs') or {})
+            chat_template_kwargs['enable_thinking'] = False
+            extra_body['chat_template_kwargs'] = chat_template_kwargs
+            params['extra_body'] = extra_body
 
         return params
 

@@ -223,6 +223,9 @@ def ask_local(prompt: str, schema: dict | None = None, config=None) -> str:
         if schema and re.match(r'https?://(127\.0\.0\.1|localhost|\[::1\])[:/]', url + '/'):
             body['response_format'] = {'type': 'json_schema', 'json_schema': {'name': 'notes', 'strict': True, 'schema': schema}}
         options = dict(getattr(config, 'extra_options', {}) or {})
+        # keep_alive belongs to Ollama's API and is not accepted by Nebius/OpenAI-compatible APIs.
+        if provider != 'ollama':
+            options.pop('keep_alive', None)
         body.update(options.pop('extra_body', {}) or {})
         body.update(options)
         api_key = os.environ.get('NEBIUS_API_KEY', '') if provider == 'nebius' else getattr(config, 'api_key', '')

@@ -45,6 +45,29 @@ class NebiusTests(unittest.TestCase):
         self.assertEqual(client.chat.completions.kwargs['model'], role.model)
         self.assertTrue(client.chat.completions.kwargs['stream'])
 
+    def test_ollama_keep_alive_is_not_sent_as_openai_sdk_argument(self):
+        client = FakeClient()
+        role = RoleConfig(provider='nebius', model='nano', extra_options={'keep_alive': '1h'})
+        params = LLMProcessor(None)._build_request_params(role, [{'role': 'user', 'content': 'hi'}])
+        text, _, _ = LLMProcessor(None)._stream_request(
+            client, params, None, None, role, None, [{'role': 'user', 'content': 'hi'}])
+        self.assertEqual(text, 'Cleaned.')
+        self.assertNotIn('keep_alive', client.chat.completions.kwargs)
+
+    def test_nemotron3_nano_disables_thinking_and_preserves_other_extra_body_options(self):
+        role = RoleConfig(
+            provider='nebius',
+            model='nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B',
+            extra_options={'extra_body': {'top_k': 1, 'chat_template_kwargs': {'custom': True}}},
+        )
+
+        params = LLMProcessor(None)._build_request_params(role, [{'role': 'user', 'content': 'hi'}])
+
+        self.assertEqual(params['extra_body'], {
+            'top_k': 1,
+            'chat_template_kwargs': {'custom': True, 'enable_thinking': False},
+        })
+
 
 if __name__ == '__main__':
     unittest.main()

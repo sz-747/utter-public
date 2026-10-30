@@ -117,5 +117,6 @@ def plan(heard, corrected, known_words, fuzzy_fixes):
     Returns {'word': str|None, 'rule': (heard, corrected)|None}.
     """
     word = None if corrected in known_words else corrected
-    rule = None if fuzzy_fixes(heard, corrected) else (heard, corrected)
+    from util.hotword.hot_phoneme import is_common_english_word
+    rule = None if is_common_english_word(heard) or fuzzy_fixes(heard, corrected) else (heard, corrected)
     return {'word': word, 'rule': rule}

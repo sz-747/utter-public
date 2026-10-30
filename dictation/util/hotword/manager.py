@@ -126,7 +126,11 @@ class HotwordManager:
         console.print(self._format_msg("Dictionary", "hot.txt", num))
 
     def _load_rule(self) -> None:
-        content = self._read_file('rule') + '\n' + self._read_file('rule_learned')
+        from util.client.learn.rule_safety import guarded_learned_rules
+        learned, skipped = guarded_learned_rules(self._read_file('rule_learned'))
+        content = self._read_file('rule') + '\n' + learned
+        if skipped:
+            logger.info('Kept %s ambiguous learned words as context, not unconditional replacements', len(skipped))
         num = self.rule_corrector.update_rules(content)
         console.print(self._format_msg("Rules", "hot-rule.txt", num))
 

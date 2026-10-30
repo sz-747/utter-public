@@ -47,6 +47,13 @@ def has_uncommon_word(span: str) -> bool:
     return bool(common) and any(w.lower() not in common for w in re.findall(r'[A-Za-z]+', span))
 
 
+def is_common_english_word(text: str) -> bool:
+    """One ordinary word is ambiguous, even when a name sounds identical."""
+    # Valid technical words can fall below the general corpus frequency cutoff.
+    word = text.strip()
+    return bool(re.fullmatch(r'[A-Za-z]+', word)) and (word.lower() in common_english() or word.lower() in {'codec', 'codecs'})
+
+
 class MatchResult(NamedTuple):
     start: int
     end: int
@@ -174,7 +181,12 @@ class PhonemeCorrector:
                 all_matched_info.append((m.hotword, m.score))
                 seen_hw_score.add((m.hotword, m.score))
 
-            if m.score < self.threshold_for(text[m.start:m.end]): continue
+            heard = text[m.start:m.end]
+            # A phonetic score cannot tell a real "audio codec" from the name Codex.
+            # Keep the candidate in similars for contextual polish; explicit rules still win.
+            if is_common_english_word(heard) and heard.lower() != m.hotword.lower():
+                continue
+            if m.score < self.threshold_for(heard): continue
 
             is_overlap = False
             for r_start, r_end in occupied_ranges:

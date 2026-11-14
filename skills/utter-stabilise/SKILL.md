@@ -11,7 +11,7 @@ description: Utter project only. Diagnose why Utter dictation loses words, types
 - **Applicable scenarios**: Utter dictation on Windows drops words, types nothing, types unpolished text, is slow to appear, or is "unstable". Not for other apps' audio, Utter UI bugs, or speech-recognition accuracy (wrong words from full audio; use the dictionary).
 - **Output location**: a chat reply; nothing is written to disk.
 - **Created**: 2026-10-26
-- **Updated**: 2026-10-26
+- **Updated**: 2026-11-14
 
 ## Goal and boundaries
 
@@ -82,6 +82,8 @@ One machine, October 2026, AirPods Pro, 19 mic connects and 251 recordings: 47% 
 - **"Is it the network?" when dictation lags.** With the speech server on the same PC, lag is local. The client log's `delay: N s` on each `Final result:` line rose from a median 0.4 s to 4.7-7.9 s after another program loaded two Ollama models with keep_alive forever and filled the GPU; once they were gone it was back under 1 s. Run `doctor` (recognition speed, local resources) and compare those delays over time before blaming the network or the model.
 - **Polish that answers but returns nothing.** The polish server answered and Utter showed it reachable, but Qwen 3.5 on Ollama thought for 11 s and returned empty text because `think` was left unset. Reachability is not a working polish; `doctor` runs a real request (`polish_empty`).
 - **Changing the client's log wording.** `report` finds recordings by the client's log lines (`Pressed: recording started`, `Audio lost: held ...`, `Final result: ...`). The tests check those lines still exist in the client's code; update `mic_diag.py` with them.
+- **"Not pasted, then it came with the next one" in the Codex app (2026-10-29).** Four dictations were missing from Codex's input box 3 s after typing, yet every one was in the message the user sent (Codex's own record: `~/.codex/sessions/<date>/rollout-*.jsonl`, user `message` items). Codex was busy streaming another thread or running a tool, so the text showed late, and it looked lost. Check those records and the client log's "appeared … only N s after typing" lines before changing how the client pastes.
+- **Blaming fast speech (2026-10-29).** On 410 saved recordings, the fastest third (3.3–6.2 words or characters per second) had no more learned mishearings than the middle third (1.7 vs 1.6 per 1000 characters), and no more speech cut at the start or end (4%/3% vs 11%/7%). Re-running the 40 fastest slowed to 0.85x or 0.75x gave -0.3% words. Slowing audio down does not help; get a failing recording first.
 
 ## Output
 

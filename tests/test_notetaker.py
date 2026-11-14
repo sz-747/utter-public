@@ -63,8 +63,6 @@ class StoreTests(unittest.TestCase):
         self.assertEqual(self.store.prefs(), {'summarizer': 'codex', 'call_popup': 'on'})
         self.store.set_pref('summarizer', 'local')
         self.assertEqual(self.store.prefs()['summarizer'], 'local')
-        self.store.set_pref('summarizer', 'nebius')
-        self.assertEqual(self.store.prefs()['summarizer'], 'nebius')
         with self.assertRaises(ValueError):
             self.store.set_pref('summarizer', 'gpt')
 
@@ -142,7 +140,7 @@ class SummaryTests(unittest.TestCase):
 
     def test_local_openai_style_server_gets_the_schema(self):
         config = type('C', (), {'provider': 'openai', 'model': 'm', 'api_url': 'http://127.0.0.1:1234/v1', 'api_key': 'k',
-                                'extra_options': {'extra_body': {'reasoning_effort': 'none'}}})
+                                'extra_options': {'extra_body': {'reasoning_effort': 'none'}, 'keep_alive': '1h'}})
         response = mock.Mock(**{'json.return_value': {'choices': [{'message': {'content': 'hi'}}]}})
         with mock.patch.object(summary.requests, 'post', return_value=response) as post:
             self.assertEqual(summary.ask_local('p', summary.SCHEMA, config), 'hi')
@@ -150,26 +148,7 @@ class SummaryTests(unittest.TestCase):
         self.assertEqual(url, 'http://127.0.0.1:1234/v1/chat/completions')
         self.assertEqual(body['response_format']['json_schema']['schema'], summary.SCHEMA)
         self.assertEqual(body['reasoning_effort'], 'none')
-
-    def test_nebius_uses_ultra_role_and_environment_key(self):
-        response = mock.Mock(**{'json.return_value': {'choices': [{'message': {'content': 'notes'}}]}})
-        config = type('C', (), {'extra_options': {'keep_alive': '1h'}})
-        with mock.patch.dict('os.environ', {'NEBIUS_API_KEY': 'secret-test-key'}), \
-             mock.patch.object(summary, 'local_config', return_value=config), \
-             mock.patch.object(summary.requests, 'post', return_value=response) as post:
-            self.assertEqual(summary.ask_nebius('meeting', summary.SCHEMA), 'notes')
-        url = post.call_args.args[0]
-        body = post.call_args.kwargs['json']
-        self.assertEqual(url, 'https://api.tokenfactory.nebius.com/v1/chat/completions')
-        self.assertEqual(body['model'], 'nvidia/Nemotron-3-Ultra-550b-a55b')
         self.assertNotIn('keep_alive', body)
-        self.assertEqual(post.call_args.kwargs['headers']['Authorization'], 'Bearer secret-test-key')
-
-    def test_nebius_requires_key_without_making_a_request(self):
-        with mock.patch.dict('os.environ', {}, clear=True), mock.patch.object(summary.requests, 'post') as post:
-            with self.assertRaisesRegex(summary.SummaryError, 'NEBIUS_API_KEY'):
-                summary.ask_nebius('meeting')
-        post.assert_not_called()
 
 
 def tone(seconds, level=0.1):

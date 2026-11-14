@@ -1,5 +1,6 @@
-"""Default role - applies hotword replacements, polishes text and fixes speech recognition errors."""
-import os
+"""
+Default role - applies hotword replacements, polishes the text and fixes speech recognition errors
+"""
 
 # ==================== Basic info ====================
 name = ''                           # Role name (empty means this is the default role)
@@ -9,14 +10,12 @@ process = True                       # Enable LLM processing
 # ==================== API settings ====================
 # Local Ollama (ollama serve; the client starts it when AI polish finds it off)
 # To use LM Studio instead: provider = 'openai', api_url = 'http://127.0.0.1:1234/v1', api_key = 'lm-studio',
-# For Nebius: provider = 'nebius'; set NEBIUS_API_KEY in the environment (Nano model is selected below).
 # model = the id from `lms ls`, extra_options = {'extra_body': {'reasoning_effort': 'none'}}
-provider = 'ollama'                     # API provider: 'ollama', 'openai' (includes compatible APIs such as LM Studio), 'deepseek', 'cerebras', 'claude', 'gemini', 'nebius'
+provider = 'ollama'                     # API provider: 'ollama', 'openai' (includes compatible APIs such as LM Studio), 'deepseek', 'cerebras', 'claude', 'gemini'
 api_url = ''                            # Leave empty to use the provider's default URL (Ollama: http://127.0.0.1:11434)
                                         # 127.0.0.1 rather than localhost: Windows tries IPv6 first and stalls ~2 s on every connection
-api_key = ''                            # Nebius reads NEBIUS_API_KEY from the environment; Ollama does not need one
-model = (os.environ.get('NEBIUS_NANO_MODEL', 'nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B')
-         if provider == 'nebius' else 'qwen3:8b')
+api_key = ''                            # Ollama does not need one
+model = 'qwen3.5:4b'                    # Model name as `ollama list` shows it; any small instruct model works
 
 # ==================== Context ====================
 max_context_length = 4096               # Maximum context length (tokens)
@@ -49,9 +48,9 @@ max_tokens = 1024                       # Cleaning one transcript never needs a 
 stop = ''                               # Stop sequence
 
 # ==================== Advanced ====================
-# keep_alive: unload the model after an hour idle (Ollama's default is 5 minutes, and the first
+# keep_alive: unload the model after 30 minutes idle (Ollama's default is 5 minutes, and the first
 # dictation after that waits ~2.6 s while the model loads)
-extra_options = {'keep_alive': '1h'}    # Extra API parameters
+extra_options = {'keep_alive': '30m'}   # Extra API parameters
 
 # ==================== Prompt prefixes ====================
 prompt_prefix_hotwords = 'Hotwords: '               # Prefix for the hotword list

@@ -74,7 +74,7 @@ Run `$base\utter.cmd`. Utter starts the speech server (up to a minute the first 
 
 ## 6. Optional: AI polish
 
-Filler words such as "um" and "uh" are removed without any AI model. For smarter cleanup (self-corrections, "like", "you know"), AI polish needs a local model server. The default is Ollama with `qwen3:8b` (`dictation\LLM\default.py`): with Ollama installed, `ollama pull qwen3:8b` is all it needs, and the client starts `ollama serve` itself when it finds it off. Another model works too: set `model` to its name from `ollama list`. If the person uses LM Studio instead, set `provider = 'openai'`, `api_url = 'http://127.0.0.1:1234/v1'` (use 127.0.0.1, not localhost: on Windows, localhost adds about 2 seconds to every request), `api_key = 'lm-studio'`, the model id from `lms ls`, and `extra_options = {'extra_body': {'reasoning_effort': 'none'}}` for models that think before answering. Do not download a model without asking; they are several GB.
+Filler words such as "um" and "uh" are removed without any AI model. For smarter cleanup (self-corrections, "like", "you know"), AI polish needs a local model server. The default is Ollama with `qwen3.5:4b` (`dictation\LLM\default.py`): with Ollama installed, `ollama pull qwen3.5:4b` is all it needs, and the client starts `ollama serve` itself when it finds it off. Another model works too: set `model` to its name from `ollama list`. If the person uses LM Studio instead, set `provider = 'openai'`, `api_url = 'http://127.0.0.1:1234/v1'` (use 127.0.0.1, not localhost: on Windows, localhost adds about 2 seconds to every request), `api_key = 'lm-studio'`, the model id from `lms ls`, and `extra_options = {'extra_body': {'reasoning_effort': 'none'}}` for models that think before answering. Do not download a model without asking; they are several GB.
 
 To check the whole pipeline afterwards (speech server, recognition speed, GPU memory, AI polish): `.venv\Scripts\python.exe skills\utter-stabilise\scripts\pipeline_check.py doctor`. It prints one PASS/FAIL line per stage and a `Result:`.
 
@@ -116,6 +116,13 @@ A weaker machine can use another PC's speech server:
 2. On the laptop, install Utter but skip step 3. In `dictation\config_client.py`, set `addr` to the PC's Tailscale name (for example `'desktop.your-tailnet.ts.net'`).
 
 With no local server installed, Utter starts only the client, and the banner names the PC it is using.
+
+The Notetaker works on the laptop too: meetings are recorded, transcribed by the PC's server and saved on the laptop (the PC's Utter does not see them). Notes are written by Codex by default, which needs the Codex CLI signed in on the laptop (`codex login`). Without it, choose "Local AI" under Meeting notes in Settings > Notetaker; that needs Ollama on the laptop with the model in `dictation\LLM\default.py` (ask before downloading a model).
+
+Checks on the laptop, in addition to the usual ones:
+- `Test-NetConnection <PC's Tailscale name> -Port 6016` reports `TcpTestSucceeded : True`.
+- With the person's agreement, start notes on the Notetaker page, say two sentences, and stop. The note shows both lines under "Me".
+- With "Offer to take notes when a call starts" on (Settings > Notetaker), joining a Google Meet, Zoom or Teams call shows the offer at the top of the screen.
 
 ## MCP for coding agents
 

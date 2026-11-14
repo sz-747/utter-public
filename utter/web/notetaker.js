@@ -9,7 +9,7 @@ state.nt = {
   selected: null, note: null, contacts: [], view: 'summary',
 };
 
-const SUMMARIZERS = { local: 'Local AI', codex: 'Codex (gpt-6-luna)', nebius: 'Nebius (Nemotron Ultra)' };
+const SUMMARIZERS = { local: 'Local AI', codex: 'Codex (gpt-6-luna)' };
 
 function clock(seconds) {
   const s = Math.max(0, Math.floor(seconds || 0));
@@ -78,7 +78,7 @@ async function renderNotetaker() {
     <div class="page-head nt-head">
       <div>
         <h1 class="page-title">Notetaker</h1>
-        <p class="page-sub">${state.nt.prefs.summarizer === 'nebius' ? 'Notes written by Nebius (Nemotron Ultra).' : state.nt.prefs.summarizer === 'codex' ? 'Notes written by Codex.' : 'Notes from your calls, written on this PC.'}</p>
+        <p class="page-sub">${state.nt.prefs.summarizer === 'codex' ? 'Notes written by Codex.' : 'Notes from your calls, written on this PC.'}</p>
       </div>
       <div class="nt-head-actions">
         <button class="icon-btn" data-settings="notetaker" title="Notetaker settings">${icon('gear')}</button>

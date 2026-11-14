@@ -42,6 +42,13 @@ class OllamaRequestTests(unittest.TestCase):
         _, sent = self._send(RoleConfig(provider='ollama', model='m'))
         self.assertIsNone(sent['keep_alive'])
 
+    def test_keep_alive_is_not_sent_to_an_openai_style_server(self):
+        # LM Studio goes through the OpenAI SDK, which rejects keep_alive as an unknown argument.
+        role = RoleConfig(provider='openai', model='m', extra_options={'keep_alive': '1h', 'top_p': 0.9})
+        params = LLMProcessor(None)._build_request_params(role, [{'role': 'user', 'content': 'hi'}])
+        self.assertNotIn('keep_alive', params)
+        self.assertEqual(params['top_p'], 0.9)
+
 
 if __name__ == '__main__':
     unittest.main()

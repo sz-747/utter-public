@@ -117,6 +117,13 @@ A weaker machine can use another PC's speech server:
 
 With no local server installed, Utter starts only the client, and the banner names the PC it is using.
 
+The Notetaker works on the laptop too: meetings are recorded, transcribed by the PC's server and saved on the laptop (the PC's Utter does not see them). Notes are written by Codex by default, which needs the Codex CLI signed in on the laptop (`codex login`). Without it, choose "Local AI" under Meeting notes in Settings > Notetaker; that needs Ollama on the laptop with the model in `dictation\LLM\default.py` (ask before downloading a model).
+
+Checks on the laptop, in addition to the usual ones:
+- `Test-NetConnection <PC's Tailscale name> -Port 6016` reports `TcpTestSucceeded : True`.
+- With the person's agreement, start notes on the Notetaker page, say two sentences, and stop. The note shows both lines under "Me".
+- With "Offer to take notes when a call starts" on (Settings > Notetaker), joining a Google Meet, Zoom or Teams call shows the offer at the top of the screen.
+
 ## MCP for coding agents
 
 Add a server named `utter` to each agent's MCP config that runs, from the Utter folder:

@@ -33,24 +33,15 @@ Anything you would otherwise type: messages, email, documents, notes, prompts fo
 - **Dictionary matched by sound.** Words in your dictionary replace sound-alike mistakes ("git hub" becomes "GitHub"); replacement rules handle fixed phrases, spoken email addresses and filler words.
 - **Sound-alike diagnosis.** The bundled `utter-stabilise` check rechecks learned mishearings against today's dictionary and tests ordinary sound-alikes that should stay unchanged. It needs a running speech server; the check does not change the dictionary.
 - **AI polish (optional).** A local model (LM Studio or Ollama) cleans up long dictations: removes fillers and false starts, fixes punctuation, and keeps your words. A guard falls back to the original text if the model starts answering instead of editing.
-
 - **Use a stronger PC's speech engine over Tailscale.** A laptop can run only the client and send audio to the speech server on your desktop.
 - **Insights**: this month's words, your speaking speed against your typing, time saved, what Utter corrected and learned, words per day and the apps you dictate into.
 - **Improvement activity on Home.** A read-only card shows the latest recorded review finding, action and verification limit. This public build has no automatic daily review configured; a completed review or passing tests are not presented as measured user benefit.
 - **Notetaker**: records a meeting (your microphone as you, what the PC plays as everyone else), transcribes it on the same local engine, then writes a title, overview, key points and next steps. Audio is never saved. Utter can offer to start it when a Google Meet, Zoom, Teams or Telegram call begins. Meet tabs can be found behind other tabs while the browser uses the microphone; Telegram is offered after 10 seconds of microphone use.
 - **MCP**: Codex, Claude Code, Pi or LM Studio can search what you dictated and what was said in your meetings, read-only.
 
-## Nebius Token Factory + NVIDIA Nemotron
-
-Nebius is an optional provider for the existing OpenAI-compatible model path. Set `NEBIUS_API_KEY` in the environment, then choose `provider = 'nebius'` in `dictation/LLM/default.py` for AI polish. That role defaults to `nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B` (override with `NEBIUS_NANO_MODEL`): Nano is the smaller, efficient choice for frequent dictation cleanup. For meeting notes, choose **Nebius Token Factory (Nemotron Ultra)** under Settings > Notetaker; it uses `nvidia/Nemotron-3-Ultra-550b-a55b` (override with `NEBIUS_ULTRA_MODEL`) for deeper reasoning. Meeting transcripts are sent to Nebius when selected. The default Notetaker choice remains Codex.
-
-The model IDs follow Nebius's [Nano cookbook](https://github.com/nebius/token-factory-cookbook/blob/main/models/nemotron/nemotron3-nano-30b.md), [Ultra cookbook](https://github.com/nebius/token-factory-cookbook/blob/main/models/nemotron/nemotron3-ultra-550b-a55b.md), and [Nemotron model catalog](https://nebius.com/services/token-factory/models/nvidia-nemotron-models-inference). Nebius documents the OpenAI-compatible endpoint at `https://api.tokenfactory.nebius.com/v1/`.
-
-**What changed during the hackathon:** Utter gained Nebius as one provider beside its existing choices. Dictation can use Nemotron Nano for quick polish, and the Notetaker can use Nemotron Ultra for meeting notes. Home now shows recorded improvement activity, and call detection covers Meet tabs behind other tabs and Telegram.
-
 ## Evidence
 
-- **274 offline tests** cover the window (104), the dictation client (148) and the bundled diagnosis skill (22): settings, dictionary and review formats, learning from edits, the AI polish guard, insights, call detection, the Notetaker and MCP tools. They need no speech server. In this sandbox, 273 pass and the existing Credential Manager test fails with Windows error 1312.
+- **270 offline tests** cover the window (102), the dictation client (146) and the bundled diagnosis skill (22): settings, dictionary and review formats, learning from edits, the AI polish guard, insights, call detection, the Notetaker and MCP tools. They need no speech server.
 - **The English dictionary matcher** was checked once, when the Chinese-language branch was removed: it gave the same results as before on 65 recorded matching cases. The main cases are kept as a test.
 - **Limits:** the tests do not use a microphone or type into real apps. Speech accuracy depends on Qwen3-ASR, your microphone and your accent, and has not been measured for this repo.
 

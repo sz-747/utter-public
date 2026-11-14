@@ -55,7 +55,6 @@ class APIConfig:
         'cerebras': 'https://api.cerebras.ai/v1',
         'claude': 'https://api.anthropic.com/v1/',                                # OpenAI-compatible endpoint
         'gemini': 'https://generativelanguage.googleapis.com/v1beta/openai/',     # OpenAI-compatible endpoint
-        'nebius': 'https://api.tokenfactory.nebius.com/v1/',
     }
 
     # Default API keys
@@ -64,7 +63,6 @@ class APIConfig:
         'openai': '',
         'deepseek': '',
         'cerebras': '',
-        'nebius': '',
     }
 
     # Request timeouts (seconds)
@@ -77,7 +75,6 @@ class APIConfig:
         'cerebras': 10.0,     # Cerebras API
         'claude': 10.0,       # Claude API
         'gemini': 10.0,       # Gemini API
-        'nebius': 60.0,       # Nebius Token Factory; remote inference can have longer first-token latency
     }
 
     # Default timeout (for providers not listed)

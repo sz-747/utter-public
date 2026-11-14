@@ -50,7 +50,7 @@ The model IDs follow Nebius's [Nano cookbook](https://github.com/nebius/token-fa
 
 ## Evidence
 
-- **274 offline tests** cover the window (104), the dictation client (148) and the bundled diagnosis skill (22): settings, dictionary and review formats, learning from edits, the AI polish guard, insights, call detection, the Notetaker and MCP tools. They need no speech server. In this sandbox, 273 pass and the existing Credential Manager test fails with Windows error 1312.
+- **274 offline tests** cover the window (104), the dictation client (148) and the bundled diagnosis skill (22): settings, dictionary and review formats, learning from edits, the AI polish guard, insights, call detection, the Notetaker and MCP tools. They need no speech server.
 - **The English dictionary matcher** was checked once, when the Chinese-language branch was removed: it gave the same results as before on 65 recorded matching cases. The main cases are kept as a test.
 - **Limits:** the tests do not use a microphone or type into real apps. Speech accuracy depends on Qwen3-ASR, your microphone and your accent, and has not been measured for this repo.
 
@@ -111,7 +111,7 @@ Product decisions are in [docs/decision-surfaces.md](docs/decision-surfaces.md).
 | Speech recognition | On your PC (or your own PC over Tailscale). Audio is never uploaded. |
 | AI polish | The model you configure; local by default. |
 | AI dictionary review | OpenAI, through your Codex CLI login, when switched on. |
-| Meeting notes | OpenAI through the Codex app server by default, or your local model. |
+| Meeting notes | OpenAI through the Codex app server by default, your local model, or Nebius Token Factory when you choose it. |
 | MCP | Whatever the connected agent's model provider is; LM Studio stays local. |
 
 ## License

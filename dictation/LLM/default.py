@@ -15,7 +15,7 @@ provider = 'ollama'                     # API provider: 'ollama', 'openai' (incl
 api_url = ''                            # Leave empty to use the provider's default URL (Ollama: http://127.0.0.1:11434)
                                         # 127.0.0.1 rather than localhost: Windows tries IPv6 first and stalls ~2 s on every connection
 api_key = ''                            # Ollama does not need one
-model = 'qwen3:8b'                      # Model name as `ollama list` shows it; any small instruct model works
+model = 'qwen3.5:4b'                    # Model name as `ollama list` shows it; any small instruct model works
 
 # ==================== Context ====================
 max_context_length = 4096               # Maximum context length (tokens)
@@ -48,9 +48,9 @@ max_tokens = 1024                       # Cleaning one transcript never needs a 
 stop = ''                               # Stop sequence
 
 # ==================== Advanced ====================
-# keep_alive: unload the model after an hour idle (Ollama's default is 5 minutes, and the first
+# keep_alive: unload the model after 30 minutes idle (Ollama's default is 5 minutes, and the first
 # dictation after that waits ~2.6 s while the model loads)
-extra_options = {'keep_alive': '1h'}    # Extra API parameters
+extra_options = {'keep_alive': '30m'}   # Extra API parameters
 
 # ==================== Prompt prefixes ====================
 prompt_prefix_hotwords = 'Hotwords: '               # Prefix for the hotword list

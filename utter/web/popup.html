@@ -8,11 +8,12 @@
     html, body { margin: 0; height: 100%; overflow: hidden; }
     body {
       background: #141716; color: #f5f3ee; font: 14px/1.35 "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
-      display: flex; align-items: center; gap: 12px; padding: 0 12px 0 18px; user-select: none;
-      -webkit-font-smoothing: antialiased;
+      display: flex; flex-direction: column; user-select: none; -webkit-font-smoothing: antialiased;
     }
     button { font: inherit; cursor: pointer; border: 0; }
     svg { flex: none; }
+    /* The bar keeps its place at the bottom; the advisors' card grows the window upward above it. */
+    #bar { flex: none; height: 76px; display: flex; align-items: center; gap: 12px; padding: 0 12px 0 18px; }
     .icon svg { width: 22px; height: 22px; color: #f0b33e; display: block; }
     .main { flex: 1; min-width: 0; }
     #actions { display: flex; align-items: center; gap: 6px; flex: none; }
@@ -29,36 +30,96 @@
     .start small { font-size: 12px; color: #6f6b63; }
     .ghost { background: transparent; color: rgba(245, 243, 238, .8); border: 1px solid rgba(255, 255, 255, .22); border-radius: 9px; padding: 7px 12px; }
     .ghost:hover { border-color: rgba(255, 255, 255, .55); color: #fff; }
+    .ask { background: #fbf7df; color: #1c1b19; border-radius: 9px; padding: 7px 12px; font-weight: 600; white-space: nowrap; }
+    .ask:hover { background: #fff; }
+    .ask:disabled { opacity: .6; cursor: default; }
     .close { background: transparent; color: rgba(245, 243, 238, .55); width: 28px; height: 28px; border-radius: 7px; display: grid; place-items: center; }
     .close:hover { background: rgba(255, 255, 255, .1); color: #fff; }
     .close svg { width: 15px; height: 15px; }
+
+    #card { flex: none; max-height: calc(100vh - 76px); overflow-y: auto; padding: 14px 16px 4px 18px; border-bottom: 1px solid rgba(255, 255, 255, .1); user-select: text; }
+    #card:empty { display: none; }
+    .card-head { display: flex; align-items: center; gap: 8px; font-size: 11.5px; letter-spacing: .06em; text-transform: uppercase; color: rgba(245, 243, 238, .55); margin-bottom: 8px; }
+    .card-head span { flex: 1; }
+    .card-head .close { width: 24px; height: 24px; }
+    .row { margin: 0 0 9px; font-size: 13.5px; }
+    .row b { display: block; font-size: 11.5px; font-weight: 600; color: #f0b33e; margin-bottom: 1px; }
+    .row.say { background: rgba(251, 247, 223, .08); border-left: 3px solid #fbf7df; border-radius: 4px; padding: 7px 10px; }
+    .row.say b { color: #fbf7df; }
+    .muted { color: rgba(245, 243, 238, .6); font-size: 13px; margin: 0 0 10px; }
+    .err { color: #f3a37a; font-size: 13px; margin: 0 0 10px; }
+    .spinner { display: inline-block; width: 12px; height: 12px; border: 2px solid rgba(255, 255, 255, .25); border-top-color: #fbf7df; border-radius: 50%; animation: spin .8s linear infinite; vertical-align: -1px; margin-right: 6px; }
+    @keyframes spin { to { transform: rotate(360deg); } }
   </style>
 </head>
 <body>
-  <div class="icon" id="icon"></div>
-  <div class="main"><div class="title" id="title">Call detected</div><div class="sub" id="sub"></div></div>
-  <div id="actions"></div>
+  <div id="card"></div>
+  <div id="bar">
+    <div class="icon" id="icon"></div>
+    <div class="main"><div class="title" id="title">Call detected</div><div class="sub" id="sub"></div></div>
+    <div id="actions"></div>
+  </div>
 
   <script src="icons.js"></script>
   <script>
     'use strict';
-    // A small always-on-top window shown while a call is on: offer to take notes, then a timer and Stop.
+    // A small always-on-top window shown while a call is on: offer to take notes, then a timer, Stop,
+    // and Ask advisors, whose card opens above the bar. Screen sharing does not show this window.
     const $ = (id) => document.getElementById(id);
     const esc = (v) => String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
     const clock = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
+    const BAR = 76;
     let last = '';
+    let lastCard = '';
+    let lastWhich = '';
+    let closedCard = null;      // the card you closed, so it stays closed until you ask again
+    let askError = '';          // why Ask could not start (e.g. nothing transcribed yet)
+
+    function cardView(advice) {
+      if (askError) advice = { status: 'failed', error: askError, at: -1 };     // only called while recording
+      if (!advice || closedCard === `${advice.at}|${advice.status}`) return '';
+      const head = (label) => `<div class="card-head"><span>${label}</span><button class="close" data-act="close-card" title="Close">${icon('x')}</button></div>`;
+      if (advice.status === 'failed') return `${head('Advisors')}<p class="err">${esc(advice.error)}</p>`;
+      const row = (label, text, cls = '') => (text ? `<div class="row ${cls}"><b>${label}</b>${esc(text)}</div>` : '');
+      const writing = advice.status === 'thinking';
+      // Until what to say has started arriving, show that it is coming; the rest fills in below it.
+      if (writing && !advice.say) {
+        return `${head('Advisors')}<p class="muted"><span class="spinner"></span>Reading the last 10 minutes of the call…</p>`;
+      }
+      // What to say and ask comes first: it is what you glance at mid-sentence. The reasons follow.
+      return head(writing ? '<span class="spinner"></span>Advisors · writing…' : `Advisors · up to ${clock(advice.at)}`)
+        + row('You could say', advice.say, 'say') + row('Ask next', advice.ask)
+        + row('Product', advice.product) + row('Engineering', advice.engineering)
+        + row('Where they differ', advice.differ) + row('What they heard', advice.heard);
+    }
+
+    function fit() {
+      const card = $('card');
+      const height = card.innerHTML ? Math.ceil(card.scrollHeight) + BAR + 2 : BAR;
+      window.pywebview.api.resize_call_popup(height);
+    }
+
+    let fastPoll = false;       // while the card is being written, check four times a second, not once
+
+    function poll() {
+      refresh().finally(() => setTimeout(poll, fastPoll ? 250 : 1000));
+    }
 
     async function refresh() {
       let state;
       try { state = await window.pywebview.api.get_call_popup(); } catch (e) { return; }
       if (!state || state.error) return;
+      fastPoll = state.mode === 'recording' && state.advice?.status === 'thinking';
       const call = state.call || {};
       let html;
       if (state.mode === 'recording') {
         const live = state.live || {};
+        const thinking = state.advice?.status === 'thinking';
         html = [icon('record'), esc(call.title || 'Meeting notes'),
           `<span class="dot rec"></span>${live.stopping ? 'Finishing the transcript…' : `Recording · ${clock(live.elapsed || 0)}`}`,
-          live.stopping ? '' : `<button class="ghost" data-act="open">Open</button> <button class="ghost" data-act="stop">Stop</button>`];
+          live.stopping ? '' : `<button class="ask" data-act="ask" ${thinking ? 'disabled' : ''} title="Advice on the last 10 minutes, for you only">Ask advisors</button>
+           <button class="ghost" data-act="open">Open</button> <button class="ghost" data-act="stop">Stop</button>
+           <button class="close" data-act="hide" title="Hide until this recording ends">${icon('x')}</button>`];
       } else if (state.mode === 'offer') {
         const code = call.code && call.title !== call.app ? ` · ${esc(call.code)}` : (call.code && call.name ? ` · ${esc(call.code)}` : '');
         html = [icon('video'), esc(call.title),
@@ -66,12 +127,25 @@
           `<button class="start" data-act="start"><span class="logo">${icon('record')}</span><span><strong>Start Notetaker</strong><small>Take notes of this call</small></span></button>
            <button class="close" data-act="dismiss" title="Not this call">${icon('x')}</button>`];
       } else {
-        return;
+        html = null;
       }
+      if (state.mode !== 'recording') askError = '';
+      // While hidden too, so the window never shows again with the last meeting's card.
+      const card = cardView(state.mode === 'recording' ? state.advice : null);
+      if (card !== lastCard) {
+        lastCard = card;
+        $('card').innerHTML = card;
+        const which = `${state.advice?.at}|${state.advice?.status}`;
+        if (which !== lastWhich) $('card').scrollTop = 0;     // not while the same card fills in
+        lastWhich = which;
+        fit();
+      }
+      if (!html) return;
       const key = html.join('|');
-      if (key === last) return;
-      last = key;
-      [$('icon').innerHTML, $('title').innerHTML, $('sub').innerHTML, $('actions').innerHTML] = html;
+      if (key !== last) {
+        last = key;
+        [$('icon').innerHTML, $('title').innerHTML, $('sub').innerHTML, $('actions').innerHTML] = html;
+      }
     }
 
     document.addEventListener('click', async (ev) => {
@@ -87,11 +161,21 @@
         await api.stop_notetaker();
       } else if (act === 'open') {
         await api.open_notetaker();
+      } else if (act === 'hide') {
+        await api.hide_call_popup();
+      } else if (act === 'ask') {
+        closedCard = null;
+        const result = await api.ask_advisors();
+        askError = (result && result.error) || '';
+      } else if (act === 'close-card') {
+        askError = '';
+        const state = await api.get_call_popup();
+        closedCard = state?.advice ? `${state.advice.at}|${state.advice.status}` : null;
       }
       refresh();
     });
 
-    window.addEventListener('pywebviewready', () => { refresh(); setInterval(refresh, 1000); });
+    window.addEventListener('pywebviewready', poll);
   </script>
 </body>
 </html>

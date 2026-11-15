@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from unittest import mock
 
-from utter import api as api_module, meeting, meeting_detect
+from utter import api as api_module, consult, meeting, meeting_detect, summary
 from utter.api import Api
 from tests.test_notetaker import FakeRecorder
 
@@ -78,8 +78,13 @@ class PopupTests(unittest.TestCase):
         self.call = meeting_detect.find_call({'msedge.exe'}, [EDGE_MEET])
         self.calendar = mock.patch.object(Api, 'get_today_meetings', return_value={'meetings': []})
         self.calendar.start()
+        self.warm = mock.patch.object(api_module.codex, 'Warm')
+        self.Warm = self.warm.start()
 
     def tearDown(self):
+        if self.api._session:
+            self.api._session.stop()
+        self.warm.stop()
         self.calendar.stop()
         self.tmp.cleanup()
 
@@ -148,6 +153,99 @@ class PopupTests(unittest.TestCase):
         self.api._session = None
         self.assertFalse(self.api._check_call(self.call))                # and goes once it stops, without offering again
 
+
+    def _record(self):
+        real_session = meeting.Session
+        with mock.patch('utter.engine.server_status', return_value={'listening': True, 'address': '127.0.0.1:1'}),              mock.patch('utter.engine.client_status', return_value={'running': False}),              mock.patch.object(meeting, 'Session', side_effect=lambda *a, **k: real_session(*a, **k, recorder_factory=FakeRecorder)):
+            started = self.api.start_notetaker()
+        self.assertTrue(started['ok'], started)
+
+    def _wait_for_advice(self):
+        for _ in range(200):
+            advice = self.api.get_call_popup().get('advice')
+            if advice and advice['status'] != 'thinking':
+                return advice
+            time.sleep(0.01)
+        self.fail('The advisors did not answer')
+
+    def test_recording_from_the_notetaker_page_also_shows_the_popup(self):
+        self._record()
+        self.assertTrue(self.api._check_call(False))        # no call detected, but recording: Ask advisors is at hand
+        popup = self.api.get_call_popup()
+        self.assertEqual((popup['mode'], popup['call']['title'], popup['advice']), ('recording', 'Meeting notes', None))
+        self.assertNotIn('lines', popup['live'])              # polled every second; the transcript is not needed
+        self.api.hide_call_popup()                            # an in-person meeting: no window on top
+        self.assertFalse(self.api._check_call(False))
+        self.assertEqual(self.shown, [True, False])
+
+    def test_ask_sun_and_kun_about_the_call(self):
+        self.assertIn('Start the notetaker', self.api.ask_advisors()['error'])
+        self._record()
+        self.assertIn('Nothing has been transcribed', self.api.ask_advisors()['error'])
+        self.api._session._on_text('others', 42.0, 'We answer quote requests about three days late.')
+        card = {'heard': 'Quotes go out three days late.', 'product': 's', 'engineering': 'k', 'differ': '', 'say': 'Say this.', 'ask': 'Ask this?'}
+        while_written = []
+
+        def advise(*args, on_partial, **kwargs):
+            on_partial({'heard': 'Quotes go out', 'say': 'Sa'})
+            while_written.append(self.api.get_call_popup()['advice'])
+            return card
+        with mock.patch.object(consult, 'advise', side_effect=advise) as advised:
+            self.assertTrue(self.api.ask_advisors()['ok'])
+            advice = self._wait_for_advice()
+        self.assertEqual((advice['status'], advice['at'], advice['say']), ('done', 42.0, 'Say this.'))
+        self.assertEqual(while_written, [{'status': 'thinking', 'at': 42.0, 'heard': 'Quotes go out', 'say': 'Sa'}])
+        lines, me, backend = advised.call_args.args[:3]
+        self.assertEqual((lines[0]['text'], backend), ('We answer quote requests about three days late.', 'codex'))
+        self.assertIs(advised.call_args.kwargs['warm'], self.Warm.return_value)    # the Codex kept ready for this call
+
+        with mock.patch.object(consult, 'advise', side_effect=summary.SummaryError('Codex stopped')):
+            self.api.ask_advisors()
+            advice = self._wait_for_advice()
+        self.assertEqual((advice['status'], advice['error']), ('failed', 'Codex stopped'))
+
+        self.api._session.stop()                              # the next meeting starts without the last card
+        self.api._session = None
+        self._record()
+        self.assertIsNone(self.api.get_call_popup()['advice'])
+
+    def test_codex_is_kept_ready_only_while_recording(self):
+        self._record()
+        self.Warm.assert_called_once_with(summary.CODEX_MODEL)
+        warm = self.Warm.return_value
+        with mock.patch.object(Api, '_summarize') as summarize:
+            self.api.stop_notetaker()
+            for _ in range(200):
+                if warm.close.called and summarize.called:          # stopped, and the store is no longer written
+                    break
+                time.sleep(0.01)
+        warm.close.assert_called_once_with()
+        self.assertIsNone(self.api._warm_codex)
+
+    def test_no_codex_kept_ready_for_the_local_model(self):
+        self.api._notes.set_pref('summarizer', 'local')
+        self._record()
+        self.Warm.assert_not_called()
+
+    def test_switching_the_ai_during_the_call(self):
+        self._record()
+        self.api._session._on_text('others', 5.0, 'Hello.')
+        warm = self.Warm.return_value
+        self.api._notes.set_pref('summarizer', 'local')
+        with mock.patch.object(consult, 'advise', return_value={}) as advised:
+            self.api.ask_advisors()
+            self._wait_for_advice()
+            self.assertIsNone(advised.call_args.kwargs['warm'])
+            for _ in range(200):
+                if warm.close.called:
+                    break
+                time.sleep(0.01)
+            warm.close.assert_called_once_with()                 # no Codex kept running for nothing
+            self.api._notes.set_pref('summarizer', 'codex')
+            self.api.ask_advisors()
+            self._wait_for_advice()
+        self.assertEqual(self.Warm.call_count, 2)               # and back to the fast path
+        self.assertIs(advised.call_args.kwargs['warm'], self.Warm.return_value)
 
 if __name__ == '__main__':
     unittest.main()

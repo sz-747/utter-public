@@ -301,6 +301,15 @@ class ResultProcessor:
                     potential_str += f" ... ({len(potential_matches)} in all)"
                 console.print(f'    Possible: [yellow]{potential_str}')
 
+        if not text:
+            # An empty final recognition has no output attempt. Keep the archive
+            # row, but do not count it as a typed dictation or watch the field.
+            self._save_details(message, None, fixes, delivery='empty')
+            self._delivered = True
+            if Config.save_audio:
+                self._keep_audio(message, text)     # its recording is still saved, not left under a temporary name
+            return
+
         paste = Config.paste
         window_info = get_active_window_info()
         from util.client.output import focus
@@ -380,14 +389,7 @@ class ResultProcessor:
         if Config.save_audio:
             from util.client.diary.diary_writer import DiaryWriter
 
-            # Rename the audio file after its text
-            file_path = self.state.pop_audio_file(message['task_id'])
-            if file_path:
-                from util.client.audio.file_manager import AudioFileManager
-                file_manager = AudioFileManager()
-                file_manager.file_path = file_path
-                file_audio = file_manager.rename(text, message['time_start'])
-                logger.debug(f"Recording saved: {file_audio}")
+            file_audio = self._keep_audio(message, text)
 
             diary_writer = DiaryWriter()
             diary_writer.write(text, message['time_start'], file_audio)
@@ -411,6 +413,18 @@ class ResultProcessor:
         self._log_modifier_key_state()
 
         console.line()
+
+    def _keep_audio(self, message, text):
+        """Rename this dictation's recording after its time and text; the new path, or None without a recording."""
+        file_path = self.state.pop_audio_file(message['task_id'])
+        if not file_path:
+            return None
+        from util.client.audio.file_manager import AudioFileManager
+        file_manager = AudioFileManager()
+        file_manager.file_path = file_path
+        file_audio = file_manager.rename(text, message['time_start'])
+        logger.debug(f"Recording saved: {file_audio}")
+        return file_audio
 
     @staticmethod
     def _archive(save, message, *args) -> None:

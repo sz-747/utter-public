@@ -241,8 +241,11 @@ class ApiNotetakerTests(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
         self.api = Api(notes_path=Path(self.tmp.name) / 'notes.sqlite3')
+        self.warm = mock.patch('utter.codex.Warm')
+        self.warm.start()
 
     def tearDown(self):
+        self.warm.stop()
         self.tmp.cleanup()
 
     def test_start_requires_the_speech_engine(self):
@@ -286,7 +289,7 @@ class ApiNotetakerTests(unittest.TestCase):
             {'title': 'Holiday', 'start': '2026-10-25', 'end': '2026-10-26', 'all_day': True, 'attendees': []},
         ]
         with mock.patch.object(google_calendar, 'status', return_value={'connected': False}):
-            self.assertEqual(self.api.get_today_meetings(), {'connected': False, 'meetings': []})
+            self.assertEqual(self.api.get_today_meetings(), {'connected': False, 'expired': False, 'meetings': []})
         with mock.patch.object(google_calendar, 'status', return_value={'connected': True}), \
              mock.patch.object(google_calendar, 'events', return_value=events) as read:
             today = self.api.get_today_meetings()
@@ -297,6 +300,10 @@ class ApiNotetakerTests(unittest.TestCase):
         with mock.patch.object(google_calendar, 'status', return_value={'connected': True}), \
              mock.patch.object(google_calendar, 'events', side_effect=OSError('offline')):
             self.assertIn('offline', self.api.get_today_meetings(refresh=True)['error'])
+        # Google rejected the sign-in: the card asks to reconnect instead of showing Google's raw error.
+        with mock.patch.object(google_calendar, 'status', return_value={'connected': True}), \
+             mock.patch.object(google_calendar, 'events', side_effect=google_calendar.SignInExpired('expired')):
+            self.assertEqual(self.api.get_today_meetings(refresh=True), {'connected': False, 'expired': True, 'meetings': []})
 
         # An old copy comes back at once (the page must not wait ~2 s for Google) and is read again behind it.
         self.api._today = (time.time() - 120, today)

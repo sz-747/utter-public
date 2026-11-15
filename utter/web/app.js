@@ -854,6 +854,9 @@ function connectorsBody(c) {
     actions = '<button class="btn" disabled>Connecting…</button>';
   } else if (g.error) {
     desc = `<span class="warn-text">${esc(g.error)}</span>`;
+  } else if (g.expired) {
+    desc = `<span class="warn-text">Google ended the sign-in for ${esc(g.email)}. Press Connect to sign in again.</span> If it ends every 7 days, the consent screen is still in Testing: open it and choose <strong>Publish app</strong>. ${linkBtn('google_consent', 'Open')}`;
+    actions += '<button class="btn" data-connector="google-disconnect">Disconnect</button>';
   }
   const setup = state.googleSetup && !g.connected && !g.pending ? `
     <div class="setup">

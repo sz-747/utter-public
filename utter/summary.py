@@ -142,16 +142,24 @@ def _name_word(word: str) -> bool:
     return True
 
 
-def parse(reply: str, me: str = '') -> dict:
-    """The notes from the model's reply (tolerates a fenced block or text around the JSON)."""
+def reply_json(reply: str, what: str = 'notes') -> dict:
+    """The JSON object in a model's reply (tolerates thinking, a fenced block or text around it)."""
     reply = re.sub(r'<think>.*?</think>', '', reply or '', flags=re.S)
     match = re.search(r'\{.*\}', reply, re.S)
     if not match:
-        raise UnreadableReply('The AI did not reply with notes.')
+        raise UnreadableReply(f'The AI did not reply with {what}.')
     try:
         data = json.loads(match.group(0))
     except ValueError as e:
         raise UnreadableReply(f'The AI reply was not valid JSON: {e}') from None
+    if not isinstance(data, dict):
+        raise UnreadableReply(f'The AI did not reply with {what}.')
+    return data
+
+
+def parse(reply: str, me: str = '') -> dict:
+    """The notes from the model's reply."""
+    data = reply_json(reply)
     people = [str(p).strip() for p in data.get('people') or [] if looks_like_person(str(p).strip(), me)]
     people += [me] if me else []
     mark = lambda value: mark_people(str(value or '').strip(), people)
@@ -281,9 +289,13 @@ def _start_local_ai(url: str) -> bool:
 
 # -- Codex app server (utter/codex.py) ----------------------------------------------
 
-def ask_codex(prompt: str, schema: dict | None = None) -> str:
+def ask_codex(prompt: str, schema: dict | None = None, effort: str = CODEX_EFFORT, timeout: float = _TIMEOUT,
+              warm: codex.Warm | None = None, on_text=None) -> str:
+    """warm: a running app server (codex.Warm) to ask instead of starting one, which answers sooner."""
     try:
-        return codex.ask(prompt, schema, CODEX_MODEL, CODEX_EFFORT, timeout=_TIMEOUT)
+        if warm:
+            return warm.ask(prompt, schema, effort, timeout, on_text)
+        return codex.ask(prompt, schema, CODEX_MODEL, effort, timeout=timeout, on_text=on_text)
     except codex.CodexError as e:
         raise SummaryError(str(e)) from None
 

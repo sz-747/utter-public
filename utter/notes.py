@@ -143,6 +143,15 @@ class Store:
         with self._db() as db:
             return [dict(row) for row in db.execute(sql + ' ORDER BY started_at DESC', args)]
 
+    def note_header(self, note_id: int) -> dict | None:
+        """Title, whether it was given, and invited names: get_note without the transcript."""
+        with self._db() as db:
+            row = db.execute('SELECT title, title_set, attendees FROM notes WHERE id=?', (note_id,)).fetchone()
+        if not row:
+            return None
+        return {'title': row['title'], 'title_set': bool(row['title_set']),
+                'attendees': json.loads(row['attendees']) if row['attendees'] else []}
+
     def get_note(self, note_id: int) -> dict | None:
         with self._db() as db:
             row = db.execute('SELECT * FROM notes WHERE id=?', (note_id,)).fetchone()

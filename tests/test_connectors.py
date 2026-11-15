@@ -92,6 +92,31 @@ class StateTests(unittest.TestCase):
             with mock.patch.object(lmstudio, '_app_running', return_value=True):
                 self.assertEqual(lmstudio.loaded_models(max_age=0),
                                  [{'name': 'Qwen 9B', 'key': 'qwen', 'context': 8192, 'tools': True}])
+    def test_a_rejected_sign_in_is_forgotten_and_shown_as_expired(self):
+        from google.auth.exceptions import RefreshError
+        name = 'Utter/unit-test-google-expired'
+        self.addCleanup(local_state.secret_delete, name)
+        local_state.write_json(google_calendar.CLIENT_FILE, {'installed': {'client_id': 'x', 'client_secret': 'y'}})
+        local_state.write_json(google_calendar.ACCOUNT_FILE, {'email': 'me@example.com'})
+        local_state.secret_set(name, 'dead-refresh-token')
+        now = datetime.now(timezone.utc)
+        with mock.patch.object(google_calendar, 'SECRET', name):
+            self.assertTrue(google_calendar.status()['connected'])
+            with mock.patch.object(google_calendar, '_events', side_effect=OSError('offline')), \
+                 self.assertRaises(OSError):              # offline is not an expired sign-in
+                google_calendar.events(now, now)
+            self.assertTrue(google_calendar.status()['connected'])
+            rejected = RefreshError('invalid_grant: Bad Request', {'error': 'invalid_grant'})
+            with mock.patch.object(google_calendar, '_events', side_effect=rejected), \
+                 self.assertRaisesRegex(google_calendar.SignInExpired, 'Settings > Connectors'):
+                google_calendar.events(now, now)
+            status = google_calendar.status()
+            self.assertIsNone(local_state.secret_get(name))
+            # A read that began before you signed in again must not delete the new sign-in.
+            local_state.secret_set(name, 'new-refresh-token')
+            google_calendar._expire('dead-refresh-token')
+            self.assertEqual(local_state.secret_get(name), 'new-refresh-token')
+        self.assertEqual((status['connected'], status['expired'], status['email']), (False, True, 'me@example.com'))
 
     def test_agents_status_reads_each_generated_config(self):
         home = Path(self.tmp.name)
@@ -189,6 +214,9 @@ class McpTests(unittest.TestCase):
 
     def test_meetings_need_the_calendar_and_include_dictations(self):
         self.assertIn('not connected', self.call('list_meetings')['error'])
+        with mock.patch.object(google_calendar, 'status', return_value={'connected': True}), \
+             mock.patch.object(google_calendar, 'events', side_effect=google_calendar.SignInExpired('sign-in expired')):
+            self.assertIn('expired', self.call('list_meetings')['error'])
         start = datetime.fromtimestamp(T0 - 60, timezone.utc)
         meetings = [{'title': 'Standup', 'all_day': False, 'start': start.isoformat(),
                      'end': (start + timedelta(minutes=5)).isoformat()},

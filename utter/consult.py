@@ -104,8 +104,8 @@ def newest(transcript: str, max_chars: int) -> str:
     for line in reversed(transcript.splitlines()):
         grown = size + len(line) + (1 if kept else 0)      # a line break between lines, none after the last
         if grown > max_chars:
-            if not kept:
-                head = line[:line.find(': ') + 2]
+            if not kept and max_chars > 1:
+                head = line[:line.find(': ') + 2] if 0 <= line.find(': ') < max_chars // 2 else ''
                 kept.append(head + '…' + line[len(line) - (max_chars - len(head) - 1):])
             break
         kept.append(line)

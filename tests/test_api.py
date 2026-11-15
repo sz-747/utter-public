@@ -79,7 +79,11 @@ class ApiTests(unittest.TestCase):
             archive.save_recognition(message)
             archive.save_output(message, 'Menu had focus')
             archive.save_details(message, {'process_name': 'notepad.exe'}, [], 'saved')
-        items = self.api.get_recent(5)['items']
+            empty = {'task_id': 'e', 'time_start': 1792809700.0, 'is_final': True, 'text': 'Um.', 'duration': 1.0}
+            archive.save_recognition(empty)
+            archive.save_output(empty, '')                        # rules left nothing to type
+            archive.save_details(empty, None, [], 'empty')
+        items = self.api.get_recent(5)['items']                   # the empty one is not listed
         self.assertEqual([i['text'] for i in items], ['Menu had focus', 'ask cloud'])
         self.assertEqual([i['saved_only'] for i in items], [True, False])
         self.assertEqual(items[0]['app'], 'Notepad')

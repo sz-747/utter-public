@@ -64,6 +64,7 @@ class ResultPipelineTests(unittest.TestCase):
             if (Path(tmp) / 'transcripts.sqlite3').exists():
                 db = sqlite3.connect(Path(tmp) / 'transcripts.sqlite3')
                 row = db.execute('SELECT output_text, delivery FROM dictations').fetchone()
+                self.audio_path = db.execute('SELECT audio_path FROM dictations').fetchone()[0]
                 db.close()
         return typed, row, observed, toasts
 
@@ -107,6 +108,7 @@ class ResultPipelineTests(unittest.TestCase):
         self.assertEqual((typed, delivery, self.audio_left), ([], 'empty', {}))     # nothing kept in memory
         self.assertEqual(len(saved), 1)
         self.assertNotEqual(saved[0], 'recording-temp.wav')                       # renamed to its time
+        self.assertEqual(Path(self.audio_path).name, saved[0])                    # and the archive row links to it
         self.diary.return_value.write.assert_not_called()                         # no empty diary entry
 
     def test_final_result_records_fixes_app_and_starts_learning(self):

@@ -222,6 +222,15 @@ class PopupTests(unittest.TestCase):
         warm.close.assert_called_once_with()
         self.assertIsNone(self.api._warm_codex)
 
+    def test_no_ask_and_no_new_codex_once_stopping(self):
+        self._record()
+        self.api._session._on_text('others', 5.0, 'Hello.')
+        self.api._close_warm_codex()
+        self.api._session.stopping = True
+        self.assertIn('stopping', self.api.ask_advisors()['error'])
+        self.assertIsNone(self.api._ready_codex())
+        self.assertEqual(self.Warm.call_count, 1)                 # only the one made when recording started
+
     def test_no_codex_kept_ready_for_the_local_model(self):
         self.api._notes.set_pref('summarizer', 'local')
         self._record()

@@ -547,7 +547,7 @@ async function notetakerPoll() {
   }
   // "In 5 min" counts down; the calendar itself is read again at most once a minute (cached in Python).
   // Not connected (or the sign-in expired): look again soon, so a reconnect shows without waiting.
-  if (!(ntPolls % (state.nt.today?.connected === false ? 3 : 30)) && $('#nt-today')) {
+  if (!(ntPolls % (state.nt.today?.expired ? 3 : 30)) && $('#nt-today')) {
     const today = await call('get_today_meetings');
     if (!today.error || today.connected !== undefined) state.nt.today = today;
     $('#nt-today').innerHTML = todayView();

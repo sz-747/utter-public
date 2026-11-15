@@ -49,6 +49,12 @@ class ConsultTests(unittest.TestCase):
         self.assertTrue(transcript.endswith('x'))
         self.assertIn('line 199 ', transcript)
 
+    def test_one_long_line_without_a_short_speaker_still_fits(self):
+        for text in ('x' * 100 + 'END', 'A very long display name: ' + 'x' * 100 + 'END'):
+            kept = consult.newest(text, 20)
+            self.assertLessEqual(len(kept), 20)
+            self.assertTrue(kept.endswith('END'), kept)
+
     def test_trimming_keeps_whole_lines_or_the_end_of_one_long_line(self):
         text = '[00:01] Others: aaaa\n[00:02] Me: bbbb'
         self.assertEqual(consult.newest(text, len(text)), text)                  # a cut on a line start drops nothing

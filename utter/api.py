@@ -263,6 +263,7 @@ class Api:
         over a minute old, read again in the background (main.py also reads it at launch)."""
         calendar = google_calendar.status()
         if not calendar['connected']:
+            self._today = None                  # after a reconnect, never show the old day's meetings
             return self._calendar_off(calendar)
         cached = self._today
         if cached and not refresh:
@@ -335,7 +336,7 @@ class Api:
         """Keep Codex ready while recording when it is the notetaker's AI; follow a change made during the call."""
         if self._notes.prefs()['summarizer'] != 'codex':
             self._close_warm_codex()
-        elif self._session and not self._warm_codex:
+        elif self._session and not self._session.stopping and not self._warm_codex:
             self._warm_codex = codex.Warm(summary.CODEX_MODEL)
         return self._warm_codex
 
@@ -360,6 +361,7 @@ class Api:
             complete = session.stop()
             with self._notetaker_lock:
                 self._session = None
+            self._close_warm_codex()            # one started by an ask while it was stopping
             if not self._notes.lines(session.note_id):
                 self._notes.set_status(session.note_id, 'empty', 'No speech was heard.', ended_at=time.time())
                 return
@@ -500,6 +502,8 @@ class Api:
         session = self._session
         if not session:
             return {'error': 'Start the notetaker first, so the advisors can hear the call.'}
+        if session.stopping:
+            return {'error': 'The notetaker is stopping.'}
         lines = session.snapshot()['lines']
         if not lines:
             return {'error': 'Nothing has been transcribed yet. Ask again once the client has spoken.'}

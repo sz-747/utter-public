@@ -64,7 +64,7 @@ def quiet_server(timeout: float = 300) -> AppServer:
     with the MCP servers on (a server the CLI cannot read turned off stops Codex from starting)."""
     try:
         return AppServer(timeout, args=quiet_args())
-    except CodexError:
+    except CodexStopped:
         return AppServer(timeout, args=quiet_args(mcp=False))
 
 
@@ -138,7 +138,8 @@ class AppServer:
                 if 'error' in message:
                     raise CodexError(f'Codex {method} failed: {message["error"].get("message")}')
                 return message.get('result') or {}
-            self._pending.append(message)           # e.g. the first words of a turn, before turn/start answers
+            if (message.get('params') or {}).get('threadId'):
+                self._pending.append(message)       # e.g. the first words of a turn, before turn/start answers
 
     def close(self):
         if self._closed:

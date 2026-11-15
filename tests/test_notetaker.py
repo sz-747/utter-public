@@ -288,8 +288,10 @@ class ApiNotetakerTests(unittest.TestCase):
              'location': 'https://us02web.zoom.us/j/123?pwd=abc', 'description': None},
             {'title': 'Holiday', 'start': '2026-10-25', 'end': '2026-10-26', 'all_day': True, 'attendees': []},
         ]
+        self.api._today = (0.0, {'connected': True, 'meetings': [{'title': 'Yesterday'}]})
         with mock.patch.object(google_calendar, 'status', return_value={'connected': False}):
             self.assertEqual(self.api.get_today_meetings(), {'connected': False, 'expired': False, 'meetings': []})
+        self.assertIsNone(self.api._today)                         # a reconnect never shows the old day
         with mock.patch.object(google_calendar, 'status', return_value={'connected': True}), \
              mock.patch.object(google_calendar, 'events', return_value=events) as read:
             today = self.api.get_today_meetings()

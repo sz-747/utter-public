@@ -77,7 +77,7 @@
 
     function cardView(advice) {
       if (askError) advice = { status: 'failed', error: askError, at: -1 };     // only called while recording
-      if (!advice || closedCard === `${advice.at}|${advice.status}`) return '';
+      if (!advice || closedCard === advice.at) return '';
       const head = (label) => `<div class="card-head"><span>${label}</span><button class="close" data-act="close-card" title="Close">${icon('x')}</button></div>`;
       if (advice.status === 'failed') return `${head('Advisors')}<p class="err">${esc(advice.error)}</p>`;
       const row = (label, text, cls = '') => (text ? `<div class="row ${cls}"><b>${label}</b>${esc(text)}</div>` : '');
@@ -170,7 +170,7 @@
       } else if (act === 'close-card') {
         askError = '';
         const state = await api.get_call_popup();
-        closedCard = state?.advice ? `${state.advice.at}|${state.advice.status}` : null;
+        closedCard = state?.advice ? state.advice.at : null;
       }
       refresh();
     });

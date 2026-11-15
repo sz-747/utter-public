@@ -172,10 +172,27 @@ class QuietServerTests(unittest.TestCase):
 
     def test_mcp_servers_that_cannot_be_turned_off_stay_on_but_hooks_and_memories_do_not(self):
         server = object()
-        with mock.patch.object(codex, 'AppServer', side_effect=[codex.CodexError('stopped'), server]) as start, \
+        with mock.patch.object(codex, 'AppServer', side_effect=[codex.CodexStopped('stopped'), server]) as start, \
              mock.patch.object(codex, 'quiet_args', side_effect=lambda mcp=True: ['mcp'] if mcp else ['features']):
             self.assertIs(codex.quiet_server(30), server)
         self.assertEqual([c.kwargs['args'] for c in start.call_args_list], [['mcp'], ['features']])
+
+    def test_a_missing_codex_is_not_tried_twice(self):
+        with mock.patch.object(codex, 'AppServer', side_effect=codex.CodexError('not found')) as start, \
+             self.assertRaisesRegex(codex.CodexError, 'not found'):
+            codex.quiet_server(30)
+        self.assertEqual(start.call_count, 1)
+
+    def test_a_startup_error_is_not_read_as_the_turn_failing(self):
+        process = FakeAppServerProcess({
+            'thread/start': [{'method': 'error', 'params': {'error': {'message': 'an MCP server failed to start'}}},
+                             {'result': {'thread': {'id': 'th1'}}}],
+            'turn/start': [{'result': {}},
+                           {'method': 'item/completed', 'params': {'item': {'type': 'agentMessage', 'text': 'ok'}}},
+                           {'method': 'turn/completed', 'params': {'turn': {'status': 'completed'}}}],
+        })
+        with patched(process):
+            self.assertEqual(codex.ask('prompt'), 'ok')
 
     def test_the_answer_is_passed_on_while_written(self):
         process = FakeAppServerProcess({

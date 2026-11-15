@@ -88,6 +88,8 @@ def dictations(db_path: Path, limit: int = 50, query: str = '', since: float | N
         app = 'app_process' if 'app_process' in columns else 'NULL'
         text = "COALESCE(NULLIF(output_text, ''), raw_text)"
         where, args = ["final=1", "TRIM(raw_text) != ''"], []
+        if 'delivery' in columns:
+            where.append("COALESCE(delivery, '') != 'empty'")      # heard something, but nothing was left to type
         if query.strip():
             where.append(f"{text} LIKE ? ESCAPE '\\'")
             args.append('%' + re.sub(r'([%_\\])', r'\\\1', query.strip()) + '%')

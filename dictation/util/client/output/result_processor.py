@@ -307,7 +307,8 @@ class ResultProcessor:
             self._save_details(message, None, fixes, delivery='empty')
             self._delivered = True
             if Config.save_audio:
-                self._keep_audio(message, text)     # its recording is still saved, not left under a temporary name
+                # Its recording is still saved and linked from the archive row, to look into why nothing was heard.
+                self._archive(save_output, message, text, self._keep_audio(message, text))
             return
 
         paste = Config.paste

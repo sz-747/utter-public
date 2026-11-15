@@ -238,6 +238,8 @@ kbd {
   width: 100%; height: auto; border-radius: 14px; border: 1px solid var(--line-2);
   background: #1b1c1c; box-shadow: 0 18px 50px -24px rgba(0, 0, 0, .8);
 }
+/* A small window (the call popup) is shown at its real size, not stretched to the column. */
+.feature-shot.narrow img, .release-shot.narrow img { width: min(100%, 470px); }
 .changelog-more { margin: 8px 0 0; padding-top: 24px; border-top: 1px solid var(--line); font-size: 15px; }
 .changelog-more a { color: var(--cream-dim); }
 

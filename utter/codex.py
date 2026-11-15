@@ -20,6 +20,8 @@ import tomllib
 import urllib.parse
 from pathlib import Path
 
+from . import __version__
+
 
 class CodexError(Exception):
     pass
@@ -93,7 +95,7 @@ class AppServer:
         self._timer.daemon = True
         self._timer.start()
         try:
-            self.request('initialize', {'clientInfo': {'name': 'utter', 'title': 'Utter', 'version': '0.2.0'}})
+            self.request('initialize', {'clientInfo': {'name': 'utter', 'title': 'Utter', 'version': __version__}})
             self.send({'method': 'initialized'})
         except Exception:
             self.close()

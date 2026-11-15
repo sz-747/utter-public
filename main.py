@@ -73,6 +73,7 @@ def main():
     window.events.shown += lambda: _watch_calls(webview, api, window)
     _zoom(api, window)
     webview.start(storage_path=str(BASE_DIR / '.webview'))
+    api._close_warm_codex(wait=True)        # closed during a call: stop the Codex kept ready for it
 
 
 def _zoom(api, window):
@@ -102,15 +103,21 @@ def _watch_calls(webview, api, window):
     pinned on top every time it shows: a second popup made after the first was destroyed was not
     kept on top (pywebview on WinForms), so a call's popup sat behind the browser. It cannot be
     made hidden up front either: pywebview's show() then waits forever for a first "shown" event.
+
+    While recording it can grow upward to show the advisors' card (utter/consult.py). It is left out
+    of screen sharing and screenshots, so a client never sees that advice.
     """
     width, height = 470, 76
-    popup = {'window': None}
+    popup = {'window': None, 'height': height}
 
     def pin(win):
         user32 = ctypes.WinDLL('user32')
         user32.SetWindowPos.argtypes = [ctypes.c_void_p, ctypes.c_void_p] + [ctypes.c_int] * 4 + [ctypes.c_uint]
+        user32.SetWindowDisplayAffinity.argtypes = [ctypes.c_void_p, ctypes.c_uint]
+        hwnd = win.native.Handle.ToInt64()
         # HWND_TOPMOST; SWP_NOSIZE | SWP_NOMOVE | SWP_NOACTIVATE | SWP_SHOWWINDOW
-        user32.SetWindowPos(win.native.Handle.ToInt64(), -1, 0, 0, 0, 0, 0x0001 | 0x0002 | 0x0010 | 0x0040)
+        user32.SetWindowPos(hwnd, -1, 0, 0, 0, 0, 0x0001 | 0x0002 | 0x0010 | 0x0040)
+        user32.SetWindowDisplayAffinity(hwnd, 0x11)    # WDA_EXCLUDEFROMCAPTURE (Windows 10 2004 and later)
 
     def show():
         if popup['window'] is None:
@@ -128,12 +135,21 @@ def _watch_calls(webview, api, window):
         if popup['window'] is not None:
             popup['window'].hide()
 
+    from webview.window import FixPoint
+
+    def resize(new_height):
+        """Grow or shrink upward, keeping the bottom edge where it is (it sits above the taskbar)."""
+        new_height = max(height, min(new_height, 640))
+        if popup['window'] is not None and new_height != popup['height']:
+            popup['height'] = new_height
+            popup['window'].resize(width, new_height, fix_point=FixPoint.SOUTH)
+
     def open_main():
         window.restore()
         window.show()
         window.evaluate_js("showPage('notetaker')")
 
-    api._start_call_watch(show, hide, open_main)
+    api._start_call_watch(show, hide, open_main, resize_popup=resize)
 
 
 if __name__ == '__main__':

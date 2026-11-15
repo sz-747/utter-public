@@ -153,6 +153,159 @@ class LoginTests(unittest.TestCase):
         self.assertEqual(self.login.state, 'idle')     # the closed server does not turn into 'failed'
 
 
+class QuietServerTests(unittest.TestCase):
+    def test_hooks_memories_plugins_and_mcp_servers_are_left_out(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            config = Path(tmp) / 'config.toml'
+            config.write_text('[mcp_servers.blender]\ncommand = "b"\n[mcp_servers.forge-mcp]\nurl = "u"\n'
+                              '[mcp_servers."odd name"]\ncommand = "o"\n', encoding='utf-8')
+            args = codex.quiet_args(config)
+            features = ['-c', 'features.hooks=false', '-c', 'features.memories=false',
+                        '-c', 'features.plugins=false', '-c', 'features.apps=false']
+            self.assertEqual(codex.quiet_args(Path(tmp) / 'missing.toml'), features)
+            self.assertEqual(codex.quiet_args(config, mcp=False), features)
+            with mock.patch.dict('os.environ', {'CODEX_HOME': tmp}):
+                self.assertEqual(codex.codex_config(), config)
+        self.assertIn('mcp_servers.blender.enabled=false', args)
+        self.assertIn('mcp_servers.forge-mcp.enabled=false', args)
+        self.assertFalse(any('odd' in a for a in args))           # not a bare TOML key: left as it is
+
+    def test_mcp_servers_that_cannot_be_turned_off_stay_on_but_hooks_and_memories_do_not(self):
+        server = object()
+        with mock.patch.object(codex, 'AppServer', side_effect=[codex.CodexStopped('stopped'), server]) as start, \
+             mock.patch.object(codex, 'quiet_args', side_effect=lambda mcp=True: ['mcp'] if mcp else ['features']):
+            self.assertIs(codex.quiet_server(30), server)
+        self.assertEqual([c.kwargs['args'] for c in start.call_args_list], [['mcp'], ['features']])
+
+    def test_a_missing_codex_is_not_tried_twice(self):
+        with mock.patch.object(codex, 'AppServer', side_effect=codex.CodexError('not found')) as start, \
+             self.assertRaisesRegex(codex.CodexError, 'not found'):
+            codex.quiet_server(30)
+        self.assertEqual(start.call_count, 1)
+
+    def test_a_startup_error_is_not_read_as_the_turn_failing(self):
+        process = FakeAppServerProcess({
+            'thread/start': [{'method': 'error', 'params': {'error': {'message': 'an MCP server failed to start'}}},
+                             {'result': {'thread': {'id': 'th1'}}}],
+            'turn/start': [{'result': {}},
+                           {'method': 'item/completed', 'params': {'item': {'type': 'agentMessage', 'text': 'ok'}}},
+                           {'method': 'turn/completed', 'params': {'turn': {'status': 'completed'}}}],
+        })
+        with patched(process):
+            self.assertEqual(codex.ask('prompt'), 'ok')
+
+    def test_the_answer_is_passed_on_while_written(self):
+        process = FakeAppServerProcess({
+            'thread/start': [{'result': {'thread': {'id': 'th1'}}}],
+            'turn/start': [{'method': 'item/agentMessage/delta', 'params': {'threadId': 'th1', 'delta': 'Let me see.'}},
+                           {'result': {}},              # the first words can come before turn/start is answered
+                           {'method': 'item/agentMessage/delta', 'params': {'threadId': 'old', 'delta': 'late'}},
+                           {'method': 'item/started', 'params': {'threadId': 'th1', 'item': {'type': 'agentMessage'}}},
+                           {'method': 'item/agentMessage/delta', 'params': {'threadId': 'th1', 'delta': '{"a":'}},
+                           {'method': 'item/agentMessage/delta', 'params': {'threadId': 'th1', 'delta': '1}'}},
+                           {'method': 'item/completed', 'params': {'item': {'type': 'agentMessage', 'text': '{"a":1}'}}},
+                           {'method': 'turn/completed', 'params': {'turn': {'status': 'completed'}}}],
+        })
+        written = []
+        with patched(process):
+            self.assertEqual(codex.ask('prompt', on_text=written.append), '{"a":1}')
+        self.assertEqual(written, ['Let me see.', '{"a":', '{"a":1}'])     # a second message starts afresh
+
+
+class FakeServer:
+    """What codex.Warm uses of an AppServer; `dies` makes it stop before it answers, `fails` fail the turn."""
+
+    def __init__(self, dies=False, fails=False):
+        self.cwd, self.dies, self.fails, self.closed = 'x', dies, fails, False
+        self.process = mock.Mock(poll=mock.Mock(return_value=None))
+        self.threads, self.turns = 0, []
+
+    def request(self, method, params):
+        if method == 'thread/start':
+            self.threads += 1
+            return {'thread': {'id': f't{self.threads}'}}
+        self.turns.append(params)
+        return {}
+
+    def messages(self):
+        if self.dies:
+            raise codex.CodexStopped('Codex stopped before it answered')
+        thread = self.turns[-1]['threadId']
+        if self.fails:
+            yield {'method': 'turn/completed', 'params': {'threadId': thread, 'turn': {'status': 'failed', 'error': {'message': 'usage limit'}}}}
+        for delta in ('{"a":', '1}'):
+            yield {'method': 'item/agentMessage/delta', 'params': {'threadId': thread, 'delta': delta}}
+        yield {'method': 'item/completed', 'params': {'threadId': thread, 'item': {'type': 'agentMessage', 'text': '{"a":1}'}}}
+        yield {'method': 'turn/completed', 'params': {'threadId': thread, 'turn': {'status': 'completed'}}}
+
+    def close(self):
+        self.closed = True
+
+
+def wait_for(check):
+    for _ in range(200):
+        if check():
+            return
+        time.sleep(0.01)
+    raise AssertionError('timed out')
+
+
+class WarmTests(unittest.TestCase):
+    def warm(self, *servers):
+        made = []
+
+        def factory(lifetime):
+            made.append(servers[len(made)])
+            return made[-1]
+        return codex.Warm('gpt-6-luna', server_factory=factory), made
+
+    def test_an_ask_uses_the_thread_opened_ahead_and_the_next_one_opens(self):
+        warm, made = self.warm(FakeServer())
+        wait_for(lambda: made and made[0].threads == 1)
+        written = []
+        self.assertEqual(warm.ask('p', None, 'low', 5, written.append), '{"a":1}')
+        self.assertEqual((made[0].turns[0]['threadId'], made[0].turns[0]['effort']), ('t1', 'low'))
+        self.assertEqual(written, ['{"a":', '{"a":1}'])
+        wait_for(lambda: made[0].threads == 2)
+        warm.close()
+        self.assertTrue(made[0].closed)
+        with self.assertRaisesRegex(codex.CodexError, 'closed'):
+            warm.ask('p')
+        self.assertEqual(len(made), 1)
+
+    def test_a_server_that_stopped_while_waiting_gets_one_fresh_try(self):
+        warm, made = self.warm(FakeServer(dies=True), FakeServer())
+        wait_for(lambda: made and made[0].threads == 1)
+        self.assertEqual(warm.ask('p'), '{"a":1}')
+        self.assertTrue(made[0].closed)
+        warm.close()
+
+    def test_only_one_fresh_try(self):
+        warm, made = self.warm(FakeServer(dies=True), FakeServer(dies=True), FakeServer())
+        wait_for(lambda: made and made[0].threads == 1)
+        with self.assertRaisesRegex(codex.CodexError, 'stopped'):
+            warm.ask('p')
+        self.assertEqual(len(made), 2)
+        warm.close()
+
+    def test_a_failed_turn_is_not_retried_and_keeps_the_server(self):
+        warm, made = self.warm(FakeServer(fails=True))
+        wait_for(lambda: made and made[0].threads == 1)
+        with self.assertRaisesRegex(codex.CodexError, 'usage limit'):
+            warm.ask('p')
+        self.assertEqual((len(made), made[0].closed, len(made[0].turns)), (1, False, 1))
+        wait_for(lambda: made[0].threads == 2)             # the next thread opens on the same server
+        warm.close()
+
+    def test_writing_to_a_server_that_ended_is_codex_stopped(self):
+        process = FakeAppServerProcess({})
+        with patched(process):
+            server = codex.AppServer(30)
+        process.write = mock.Mock(side_effect=OSError(22, 'Invalid argument'))
+        with self.assertRaises(codex.CodexStopped):
+            server.request('thread/start', {})
+
+
 class ApiAccountTests(unittest.TestCase):
     def test_email_is_cached_and_reread_after_a_switch(self):
         with tempfile.TemporaryDirectory() as tmp:

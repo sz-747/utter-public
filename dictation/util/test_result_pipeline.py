@@ -10,10 +10,11 @@ from unittest import mock
 
 
 class ResultPipelineTests(unittest.TestCase):
-    def _run(self, typeable, locked=False, fail_output=False):
+    def _run(self, typeable, locked=False, fail_output=False, text='Send the report today.', audio=None):
         """Process one final result; returns (typed texts, archive row, watcher calls, toasts).
         locked: every archive write fails as when another program holds the database.
-        fail_output: typing raises before anything reaches the app."""
+        fail_output: typing raises before anything reaches the app.
+        audio: a recording file for this dictation, with audio saving on; what is left is in self.audio_left."""
         from config_client import ClientConfig as Config
         from util.client.diary import archive
         from util.client.output import result_processor as rp
@@ -37,7 +38,8 @@ class ResultPipelineTests(unittest.TestCase):
                     stack.enter_context(mock.patch.object(
                         rp, name, side_effect=sqlite3.OperationalError('database is locked')))
             with mock.patch.object(archive, 'ROOT', Path(tmp)), \
-                    mock.patch.object(Config, 'save_audio', False), \
+                    mock.patch.object(Config, 'save_audio', bool(audio)), \
+                    mock.patch('util.client.diary.diary_writer.DiaryWriter') as self.diary, \
                     mock.patch.object(Config, 'llm_enabled', False), \
                     mock.patch.object(rp.TextOutput, 'output', fake_output), \
                     mock.patch.object(rp, 'get_active_window_info', return_value={'process_name': 'notepad.exe'}), \
@@ -48,10 +50,13 @@ class ResultPipelineTests(unittest.TestCase):
                     mock.patch('util.client.learn.edit_watcher.get_edit_watcher', return_value=watcher), \
                     mock.patch('util.client.learn.reviewer.get_reviewer'), stack:
                 processor = rp.ResultProcessor(state)
+                if audio:
+                    state.audio_files['delivery-test'] = audio
                 now = time.time()
                 await processor._handle_message(json.dumps({
                     'task_id': 'delivery-test', 'time_start': now, 'time_submit': now, 'time_complete': now + 0.1,
-                    'is_final': True, 'duration': 1.0, 'text': 'Send the report today.'}))
+                    'is_final': True, 'duration': 1.0, 'text': text}))
+                self.audio_left = dict(state.audio_files)
 
         with tempfile.TemporaryDirectory() as tmp:
             asyncio.run(run(tmp))
@@ -59,6 +64,7 @@ class ResultPipelineTests(unittest.TestCase):
             if (Path(tmp) / 'transcripts.sqlite3').exists():
                 db = sqlite3.connect(Path(tmp) / 'transcripts.sqlite3')
                 row = db.execute('SELECT output_text, delivery FROM dictations').fetchone()
+                self.audio_path = db.execute('SELECT audio_path FROM dictations').fetchone()[0]
                 db.close()
         return typed, row, observed, toasts
 
@@ -85,6 +91,25 @@ class ResultPipelineTests(unittest.TestCase):
         self.assertEqual(typed, ['Send the report today'])
         self.assertEqual(delivery, 'typed')
         self.assertEqual(toasts, [])
+
+    def test_empty_final_result_is_not_recorded_as_typed(self):
+        typed, (output, delivery), observed, toasts = self._run(typeable=True, text='')
+        self.assertEqual((output, delivery), ('', 'empty'))
+        self.assertEqual(typed, [])
+        self.assertEqual(observed, [])
+        self.assertEqual(toasts, [])
+
+    def test_an_empty_result_still_saves_its_recording(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            recording = Path(tmp) / 'recording-temp.wav'
+            recording.write_bytes(b'RIFF')
+            typed, (output, delivery), _, _ = self._run(typeable=True, text='', audio=recording)
+            saved = [f.name for f in Path(tmp).iterdir() if f.suffix == '.wav']
+        self.assertEqual((typed, delivery, self.audio_left), ([], 'empty', {}))     # nothing kept in memory
+        self.assertEqual(len(saved), 1)
+        self.assertNotEqual(saved[0], 'recording-temp.wav')                       # renamed to its time
+        self.assertEqual(Path(self.audio_path).name, saved[0])                    # and the archive row links to it
+        self.diary.return_value.write.assert_not_called()                         # no empty diary entry
 
     def test_final_result_records_fixes_app_and_starts_learning(self):
         from config_client import ClientConfig as Config

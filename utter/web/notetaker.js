@@ -183,6 +183,10 @@ function todayView() {
   if (!state.nt.today) return '<div class="empty">Checking your calendar…</div>';
   const today = state.nt.today;
   const meetings = today.meetings || [];
+  if (today.expired) {
+    return `<div class="eyebrow">Today</div><div class="nt-today-empty">${icon('calendar')}<div>Google Calendar sign-in expired</div>
+      <button class="btn primary" data-settings="connectors">Reconnect calendar</button></div>`;
+  }
   if (!today.connected) {
     return '<div class="empty">Connect your calendar to see today\'s meetings here. <button class="link" data-settings="connectors">Connect calendar</button></div>';
   }
@@ -542,7 +546,8 @@ async function notetakerPoll() {
     return;
   }
   // "In 5 min" counts down; the calendar itself is read again at most once a minute (cached in Python).
-  if (!(ntPolls % 30) && $('#nt-today')) {
+  // Not connected (or the sign-in expired): look again soon, so a reconnect shows without waiting.
+  if (!(ntPolls % (state.nt.today?.expired ? 3 : 30)) && $('#nt-today')) {
     const today = await call('get_today_meetings');
     if (!today.error || today.connected !== undefined) state.nt.today = today;
     $('#nt-today').innerHTML = todayView();

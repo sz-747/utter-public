@@ -25,6 +25,10 @@ SIGN_IN_TIMEOUT = 300
 _flow = {'pending': False, 'error': None}
 
 
+class SignInExpired(RuntimeError):
+    """Google no longer accepts the saved sign-in (invalid_grant); Utter has forgotten it."""
+
+
 def client_config() -> dict | None:
     return local_state.read_json(CLIENT_FILE) or None
 
@@ -44,9 +48,10 @@ def set_client_file(path) -> None:
 def status() -> dict:
     account = local_state.read_json(ACCOUNT_FILE)
     connected = bool(account) and local_state.secret_get(SECRET) is not None
+    expired = not connected and bool(account.get('expired_at'))
     return {'has_client': client_config() is not None, 'connected': connected,
-            'email': account.get('email') if connected else None,
-            'pending': _flow['pending'], 'error': _flow['error']}
+            'email': account.get('email') if connected or expired else None,
+            'expired': expired, 'pending': _flow['pending'], 'error': _flow['error']}
 
 
 def connect() -> None:
@@ -93,10 +98,10 @@ def disconnect() -> None:
     _flow['error'] = None
 
 
-def _session():
+def _session(token: str | None = None):
     from google.auth.transport.requests import AuthorizedSession
     from google.oauth2.credentials import Credentials
-    token = local_state.secret_get(SECRET)
+    token = token or local_state.secret_get(SECRET)
     config = (client_config() or {}).get('installed', {})
     if not token or not config:
         raise RuntimeError('Google Calendar is not connected. Connect it in Utter: Settings > Connectors.')
@@ -105,9 +110,39 @@ def _session():
     return AuthorizedSession(creds)
 
 
+def _expire(rejected: str) -> None:
+    """Forget a refresh token Google has rejected, but remember whose it was so the page can say "reconnect".
+    A read that started before you signed in again must not delete the new token."""
+    if local_state.secret_get(SECRET) != rejected:
+        return
+    account = local_state.read_json(ACCOUNT_FILE)
+    if account:
+        local_state.write_json(ACCOUNT_FILE, dict(account, expired_at=datetime.now().astimezone().isoformat()))
+    local_state.secret_delete(SECRET)
+
+
+def _rejected(error) -> bool:
+    """invalid_grant: Google revokes the refresh token 7 days after sign-in while the consent screen is
+    in Testing, and when Utter's access is removed or the OAuth client changes. Retrying cannot work."""
+    details = error.args[1] if len(error.args) > 1 and isinstance(error.args[1], dict) else {}
+    return details.get('error') == 'invalid_grant' or 'invalid_grant' in str(error.args[0] if error.args else '')
+
+
 def events(start: datetime, end: datetime) -> list[dict]:
     """Events from every calendar shown in Google Calendar, between two aware datetimes, by start time."""
-    session = _session()
+    from google.auth.exceptions import RefreshError
+    token = local_state.secret_get(SECRET)
+    try:
+        return _events(start, end, token)
+    except RefreshError as e:
+        if not _rejected(e):
+            raise
+        _expire(token)
+        raise SignInExpired('Google Calendar sign-in expired. Reconnect it in Utter: Settings > Connectors.') from e
+
+
+def _events(start: datetime, end: datetime, token: str | None = None) -> list[dict]:
+    session = _session(token)
     response = session.get(f'{API}/users/me/calendarList', params={'minAccessRole': 'reader'}, timeout=20)
     response.raise_for_status()
     found = []

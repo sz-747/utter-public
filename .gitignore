@@ -44,3 +44,6 @@ dictation/models/
 Thumbs.db
 .idea/
 .vscode/
+
+# Your own advisor files belong in %APPDATA%\Utter\advisors; never commit a real one here
+utter/advisors/offer.md

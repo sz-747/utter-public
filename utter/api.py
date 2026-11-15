@@ -18,8 +18,8 @@ from pathlib import Path
 
 from config_client import ClientConfig
 from util import app_settings, dictionary_files
-from . import (__version__, agents, codex, dictation, engine, google_calendar, improvements, lmstudio, local_state, meeting,
-               meeting_detect, notes, stats, summary)
+from . import (__version__, agents, codex, consult, dictation, engine, google_calendar, improvements, lmstudio,
+               local_state, meeting, meeting_detect, notes, stats, summary)
 
 ROOT = dictation.ROOT                             # the dictation client's folder
 CALL_GONE_SECONDS = 20                            # a call missing this long has ended (tabs switch, mics blink)
@@ -65,6 +65,9 @@ class Api:
         self._call_seen = 0.0
         self._dismissed_calls = set()         # calls the popup was closed for, or already taken notes of
         self._summarizing = set()             # note ids with a summary in progress
+        self._advice = None                   # the latest advisors' answer for the meeting being recorded
+        self._advice_lock = threading.Lock()
+        self._warm_codex = None               # a Codex kept ready while recording, so Ask advisors answers fast
         self._notetaker_lock = threading.Lock()
         self._codex_login = codex.Login()
         self._codex_email = None              # (email, read at) cached for a minute; reading starts Codex
@@ -258,14 +261,20 @@ class Api:
 
         Reading Google takes about 2 s, so the last copy is returned at once and, when it is
         over a minute old, read again in the background (main.py also reads it at launch)."""
-        if not google_calendar.status()['connected']:
-            return {'connected': False, 'meetings': []}
+        calendar = google_calendar.status()
+        if not calendar['connected']:
+            self._today = None                  # after a reconnect, never show the old day's meetings
+            return self._calendar_off(calendar)
         cached = self._today
         if cached and not refresh:
             if time.time() - cached[0] >= 60 and not self._today_reading.locked():
                 threading.Thread(target=self._read_today, daemon=True, name='calendar-today').start()
             return cached[1]
         return self._read_today()
+
+    @staticmethod
+    def _calendar_off(calendar):
+        return {'connected': False, 'expired': bool(calendar.get('expired')), 'meetings': []}
 
     def _read_today(self):
         with self._today_reading:
@@ -275,7 +284,10 @@ class Api:
         day = datetime.now().astimezone().replace(hour=0, minute=0, second=0, microsecond=0)
         try:
             events = google_calendar.events(day, day + timedelta(days=1))
-        except Exception as e:  # offline or the sign-in was revoked: keep the page working
+        except google_calendar.SignInExpired:
+            self._today = None
+            return self._calendar_off({'expired': True})
+        except Exception as e:  # offline: keep the page working
             return {'connected': True, 'meetings': [], 'error': f'Google Calendar could not be read: {e}'}
         result = {'connected': True, 'meetings': [
             {'title': e['title'], 'start': e['start'], 'end': e['end'], 'join_url': google_calendar.join_link(e),
@@ -315,7 +327,26 @@ class Api:
                 self._notes.delete_note(note_id)
                 raise
             self._session = session
+            self._advice = None
+            self._close_warm_codex()
+            self._ready_codex()
         return {'ok': True, 'note_id': note_id, 'live': session.snapshot()}
+
+    def _ready_codex(self):
+        """Keep Codex ready while recording when it is the notetaker's AI; follow a change made during the call."""
+        if self._notes.prefs()['summarizer'] != 'codex':
+            self._close_warm_codex()
+        elif self._session and not self._session.stopping and not self._warm_codex:
+            self._warm_codex = codex.Warm(summary.CODEX_MODEL)
+        return self._warm_codex
+
+    def _close_warm_codex(self, wait=False):
+        """Stop the Codex kept ready; main.py waits for it when Utter closes."""
+        warm, self._warm_codex = self._warm_codex, None
+        if warm and wait:
+            warm.close()
+        elif warm:
+            threading.Thread(target=warm.close, daemon=True, name='codex-warm-close').start()
 
     @_safe
     def stop_notetaker(self):
@@ -324,10 +355,13 @@ class Api:
         if not session or session.stopping:
             return {'error': 'The notetaker is not recording.'}
 
+        self._close_warm_codex()
+
         def finish():
             complete = session.stop()
             with self._notetaker_lock:
                 self._session = None
+            self._close_warm_codex()            # one started by an ask while it was stopping
             if not self._notes.lines(session.note_id):
                 self._notes.set_status(session.note_id, 'empty', 'No speech was heard.', ended_at=time.time())
                 return
@@ -390,9 +424,10 @@ class Api:
 
     # -- calls: offer to take notes when one starts --------------------------
 
-    def _start_call_watch(self, show_popup, hide_popup, open_main, interval=3.0):
-        """Watch for calls in the background (main.py passes the popup window's show/hide)."""
-        self._popup = {'show': show_popup, 'hide': hide_popup, 'open_main': open_main, 'shown': False}
+    def _start_call_watch(self, show_popup, hide_popup, open_main, interval=3.0, resize_popup=None):
+        """Watch for calls in the background (main.py passes the popup window's show/hide/resize)."""
+        self._popup = {'show': show_popup, 'hide': hide_popup, 'open_main': open_main, 'resize': resize_popup,
+                       'shown': False}
         threading.Thread(target=self._watch_calls, args=(interval,), daemon=True, name='call-watch').start()
 
     def _watch_calls(self, interval):
@@ -416,9 +451,9 @@ class Api:
             self._dismissed_calls.discard(self._call['key'])
             self._call = None
         session = self._session
-        from_popup = bool(session and getattr(session, 'call_key', None))
         offer = bool(self._call and self._call['key'] not in self._dismissed_calls and not session)
-        want = (offer or from_popup) and on
+        recording = bool(session and not getattr(session, 'popup_hidden', False))
+        want = (offer or recording) and on
         popup = getattr(self, '_popup', None)
         if popup and want != popup['shown']:
             popup['shown'] = want
@@ -448,11 +483,71 @@ class Api:
     def get_call_popup(self):
         """What the call popup shows: an offer for the call going on, or the recording it started."""
         session = self._session
-        if session and getattr(session, 'call_key', None):
-            return {'mode': 'recording', 'live': session.snapshot(), 'call': self._call}
+        if session:
+            live = session.snapshot(lines=False)       # the popup shows the timer, not the transcript
+            title = (self._call or {}).get('title') if getattr(session, 'call_key', None) else None
+            return {'mode': 'recording', 'live': live, 'call': {'title': title or self._live_title(session)},
+                    'advice': self._advice}
         if self._call and not session:
             return {'mode': 'offer', 'call': self._call}
         return {'mode': 'none'}
+
+    def _live_title(self, session):
+        note = self._notes.note_header(session.note_id) or {}
+        return note.get('title') if note.get('title_set') else 'Meeting notes'
+
+    @_safe
+    def ask_advisors(self):
+        """Ask the advisors about the last minutes of the meeting being recorded; poll get_call_popup for the card."""
+        session = self._session
+        if not session:
+            return {'error': 'Start the notetaker first, so the advisors can hear the call.'}
+        if session.stopping:
+            return {'error': 'The notetaker is stopping.'}
+        lines = session.snapshot()['lines']
+        if not lines:
+            return {'error': 'Nothing has been transcribed yet. Ask again once the client has spoken.'}
+        with self._advice_lock:                        # a double click must not start two requests
+            if (self._advice or {}).get('status') == 'thinking':
+                return {'ok': True}
+            asked = {'status': 'thinking', 'at': lines[-1]['at']}
+            self._advice = asked
+        note = self._notes.note_header(session.note_id) or {}
+        warm = self._ready_codex()
+
+        def written(card):                             # the card fills in while Codex writes it
+            if self._session is session and (self._advice or {}).get('status') == 'thinking':
+                self._advice = {**asked, **card}
+
+        def run():
+            try:
+                card = consult.advise(lines, self._me(), self._notes.prefs()['summarizer'],
+                                      note.get('title') if note.get('title_set') else None, note.get('attendees') or [],
+                                      warm=warm, on_partial=written)
+                result = {**asked, 'status': 'done', **card}
+            except Exception as e:                     # shown on the popup; asking again retries
+                result = {**asked, 'status': 'failed', 'error': str(e) or type(e).__name__}
+            if self._session is session:               # a new meeting does not get the last one's card
+                self._advice = result
+
+        threading.Thread(target=run, daemon=True, name='ask-advisors').start()
+        return {'ok': True}
+
+    @_safe
+    def hide_call_popup(self):
+        """Hide the popup for the rest of this recording (an in-person meeting needs no window on top)."""
+        session = self._session
+        if session:
+            session.popup_hidden = True
+        self._check_call(found=self._call or False)
+        return {'ok': True}
+
+    @_safe
+    def resize_call_popup(self, height):
+        popup = getattr(self, '_popup', None)
+        if popup and popup.get('resize'):
+            popup['resize'](int(height))
+        return {'ok': True}
 
     @_safe
     def start_call_notes(self):

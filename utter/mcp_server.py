@@ -136,9 +136,14 @@ def list_meetings(start: str = '', end: str = '', include_dictations: bool = Tru
     _record('list_meetings')
     since = _when(start) or _today()[0]
     until = _when(end, end=True) or since.replace(hour=0, minute=0, second=0, microsecond=0) + timedelta(days=1)
-    if not google_calendar.status()['connected']:
-        return {'error': 'Google Calendar is not connected. The user can connect it in Utter: Settings > Connectors.'}
-    meetings = google_calendar.events(since, until)
+    calendar = google_calendar.status()
+    if not calendar['connected']:
+        state = 'sign-in expired' if calendar.get('expired') else 'is not connected'
+        return {'error': f'Google Calendar {state}. The user can connect it in Utter: Settings > Connectors.'}
+    try:
+        meetings = google_calendar.events(since, until)
+    except google_calendar.SignInExpired as e:
+        return {'error': str(e)}
     if include_dictations:
         attach_dictations(meetings)
     return {'count': len(meetings), 'meetings': meetings}

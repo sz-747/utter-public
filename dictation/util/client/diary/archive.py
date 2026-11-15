@@ -18,7 +18,7 @@ _EXTRA_COLUMNS = {
     'app_process': 'TEXT',   # foreground process that received the text
     'app_title': 'TEXT',     # its window title at output time
     'fixes': 'TEXT',         # JSON list of corrections the dictation client applied
-    'delivery': 'TEXT',      # 'typed', or 'saved' when there was nowhere to type it
+    'delivery': 'TEXT',      # 'typed', 'saved' when there was nowhere to type it, or 'empty' when nothing was heard
     'reviewed_at': 'TEXT',   # when the AI dictionary reviewer read this dictation
 }
 

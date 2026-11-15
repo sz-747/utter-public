@@ -319,14 +319,15 @@ class Session:
         self.recorder.stop()
         return self.transcriber.close()
 
-    def snapshot(self) -> dict:
+    def snapshot(self, lines: bool = True) -> dict:
+        """The live state; lines=False skips copying the transcript (the call popup polls every second)."""
         with self._lock:
-            lines = list(self.lines)
+            copied = list(self.lines) if lines else None
         return {
             'note_id': self.note_id,
             'started_at': self.started_at,
             'elapsed': time.time() - self.started_at,
-            'lines': lines,
+            **({'lines': copied} if lines else {}),
             'levels': self.recorder.levels(),
             'devices': dict(self.recorder.devices),
             'device_errors': dict(self.recorder.errors),

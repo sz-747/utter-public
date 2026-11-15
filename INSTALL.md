@@ -107,6 +107,7 @@ To run dictation without the window: `dictation\start-dictation.cmd`, and `dicta
 - **Settings in the window**: shortcuts, microphone, sounds, muting other apps, learning, AI review, AI polish and output.
 - **The dictionary**: `dictation\hot.txt` (words), `dictation\hot-rule.txt` (replacement rules) and `dictation\hot-rectify.txt` (examples for AI polish). They are created from the `*.example.txt` files the first time the client runs, and Git ignores them. Words can also be edited in the window's Dictionary.
 - **Everything else**: `dictation\config_client.py` (defaults) and `dictation\LLM\default.py` (the AI polish model and prompt). Step 6 covers the AI polish model (Ollama by default, or LM Studio); after that, switch it on in Settings > Dictation. `dictionary_context` (also in Settings > Dictation) tells the speech model your dictionary words on each recording.
+- **Call advisors** (Ask advisors on the call popup): copy `utter\advisors\offer.example.md` to `%APPDATA%\Utter\advisors\offer.md` and describe what you offer. A `product.md` or `engineering.md` in that folder replaces the bundled advisor. `UTTER_ADVISORS_DIR` moves the folder.
 
 ## Remote dictation over Tailscale
 

@@ -37,11 +37,12 @@ Anything you would otherwise type: messages, email, documents, notes, prompts fo
 - **Insights**: this month's words, your speaking speed against your typing, time saved, what Utter corrected and learned, words per day and the apps you dictate into.
 - **Improvement activity on Home.** A read-only card shows the latest recorded review finding, action and verification limit. This public build has no automatic daily review configured; a completed review or passing tests are not presented as measured user benefit.
 - **Notetaker**: records a meeting (your microphone as you, what the PC plays as everyone else), transcribes it on the same local engine, then writes a title, overview, key points and next steps. Audio is never saved. Utter can offer to start it when a Google Meet, Zoom, Teams or Telegram call begins. Meet tabs can be found behind other tabs while the browser uses the microphone; Telegram is offered after 10 seconds of microphone use.
+- **Ask advisors during a call.** While the Notetaker records, the call popup has an "Ask advisors" button. A product advisor and an engineering advisor read the last 10 minutes and give you something to say, a question to ask next, each read and where they differ. With Codex the first words appear in about 2 s. Screen sharing and screenshots do not show the popup. You describe what you offer, and can replace either advisor, in your own files.
 - **MCP**: Codex, Claude Code, Pi or LM Studio can search what you dictated and what was said in your meetings, read-only.
 
 ## Evidence
 
-- **270 offline tests** cover the window (102), the dictation client (146) and the bundled diagnosis skill (22): settings, dictionary and review formats, learning from edits, the AI polish guard, insights, call detection, the Notetaker and MCP tools. They need no speech server.
+- **300 offline tests** cover the window (130), the dictation client (148) and the bundled diagnosis skill (22): settings, dictionary and review formats, learning from edits, the AI polish guard, insights, call detection, the Notetaker, call advice and MCP tools. They need no speech server.
 - **The English dictionary matcher** was checked once, when the Chinese-language branch was removed: it gave the same results as before on 65 recorded matching cases. The main cases are kept as a test.
 - **Limits:** the tests do not use a microphone or type into real apps. Speech accuracy depends on Qwen3-ASR, your microphone and your accent, and has not been measured for this repo.
 
